@@ -1,26 +1,152 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Primary Brand Colors - Green Theme */
+  --color-primary: #16A34A;
+  --color-primary-light: #DCFCE7;
+  --color-primary-dark: #166534;
+  --color-primary-hover: #15803D;
+  
+  /* Background Colors */
+  --background: #FFFFFF;
+  --background-secondary: #F0FDF4;
+  --background-card: #FFFFFF;
+  
+  /* Text Colors */
+  --foreground: #1F2937;
+  --foreground-secondary: #6B7280;
+  --foreground-muted: #9CA3AF;
+  
+  /* Status Colors */
+  --color-success: #16A34A;
+  --color-warning: #F59E0B;
+  --color-error: #DC2626;
+  --color-info: #3B82F6;
+  
+  /* Border Colors */
+  --border-color: #E5E7EB;
+  --border-focus: #16A34A;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-primary: var(--color-primary);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* Force light mode - no dark mode */
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Custom Utility Classes */
+.btn-primary {
+  background-color: var(--color-primary);
+  color: white;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.btn-primary:active {
+  background-color: var(--color-primary-dark);
+}
+
+.btn-secondary {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary-dark);
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.btn-secondary:hover {
+  background-color: #BBF7D0;
+}
+
+.card {
+  background-color: var(--background-card);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.input {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+}
+
+/* Status badges */
+.badge-paid {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary-dark);
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-unpaid {
+  background-color: #FEE2E2;
+  color: #991B1B;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-partial {
+  background-color: #FEF3C7;
+  color: #92400E;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* Table styles */
+.table-header {
+  background-color: var(--background-secondary);
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-primary-light);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
 }
