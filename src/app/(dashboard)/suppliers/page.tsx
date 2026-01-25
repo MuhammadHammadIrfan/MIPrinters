@@ -117,13 +117,13 @@ export default function SuppliersPage() {
                                     className="card block hover:border-green-500 transition-colors"
                                 >
                                     <div className="flex items-start gap-3">
-                                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 text-2xl flex-shrink-0">
+                                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-2xl flex-shrink-0">
                                             {type.emoji}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 flex-wrap">
                                                 <h3 className="font-semibold text-gray-900 truncate">{supplier.name}</h3>
-                                                <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">
+                                                <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700">
                                                     {type.label}
                                                 </span>
                                                 {supplier.syncStatus === 'pending' && (
