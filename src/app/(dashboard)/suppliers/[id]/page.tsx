@@ -155,12 +155,12 @@ export default function SupplierDetailPage() {
                 {!isEditing ? (
                     <div className="card">
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-purple-100 text-3xl">
+                            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-3xl">
                                 {typeInfo.emoji}
                             </div>
                             <div>
                                 <h2 className="text-xl font-bold text-gray-900">{supplier.name}</h2>
-                                <span className="text-sm px-2 py-0.5 rounded bg-purple-100 text-purple-700">
+                                <span className="text-sm px-2 py-0.5 rounded bg-green-100 text-green-700">
                                     {typeInfo.label}
                                 </span>
                             </div>
@@ -228,8 +228,8 @@ export default function SupplierDetailPage() {
                                         onClick={() => setFormData({ ...formData, supplierType: type.value as typeof formData.supplierType })}
                                         className={`p-3 rounded-lg border text-sm font-medium transition-colors text-left
                       ${formData.supplierType === type.value
-                                                ? 'bg-purple-600 text-white border-purple-600'
-                                                : 'bg-white text-gray-700 border-gray-200 hover:bg-purple-50'}`}
+                                                ? 'bg-green-600 text-white border-green-600'
+                                                : 'bg-white text-gray-700 border-gray-200 hover:bg-green-50'}`}
                                     >
                                         <span className="text-lg mr-2">{type.emoji}</span>
                                         {type.label}
