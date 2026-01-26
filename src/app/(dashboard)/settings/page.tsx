@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Header } from '@/components/layout';
+import { createClient } from '@/lib/supabase/client';
 
 interface BusinessSettings {
     businessName: string;
@@ -50,15 +51,56 @@ export default function SettingsPage() {
     const [isChangingPassword, setIsChangingPassword] = useState(false);
 
     // Load settings from localStorage on mount
+
+    // Load settings from localStorage AND Cloud on mount
     useEffect(() => {
+        // 1. Load from localStorage (fast/offline)
         const saved = localStorage.getItem('miprinters_settings');
         if (saved) {
             try {
                 const parsed = JSON.parse(saved);
-                setSettings({ ...DEFAULT_SETTINGS, ...parsed });
+                setSettings(prev => ({ ...prev, ...parsed }));
             } catch {
                 console.error('Failed to parse saved settings');
             }
+        }
+
+        // 2. Fetch from Cloud (source of truth)
+        const fetchProfile = async () => {
+            const supabase = createClient();
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { data, error } = await supabase
+                .from('owner_profiles')
+                .select('*')
+                .eq('id', user.id)
+                .single();
+
+            if (data && !error) {
+                const cloudSettings: BusinessSettings = {
+                    businessName: data.business_name || 'MI Printers',
+                    phone: data.phone || '',
+                    email: data.email || '',
+                    address: data.address || '',
+                    bankName: data.bank_name || '',
+                    accountTitle: data.account_title || '',
+                    accountNumber: data.account_number || '',
+                    iban: data.iban || '',
+                    invoicePrefix: data.invoice_prefix || 'INV',
+                    nextInvoiceNumber: data.next_invoice_number || 1,
+                    defaultPaymentTerms: data.default_payment_terms || 7,
+                    defaultTaxRate: data.default_tax_rate || 0,
+                };
+
+                setSettings(cloudSettings);
+                // Update cache
+                localStorage.setItem('miprinters_settings', JSON.stringify(cloudSettings));
+            }
+        };
+
+        if (navigator.onLine) {
+            fetchProfile();
         }
     }, []);
 
@@ -70,8 +112,30 @@ export default function SettingsPage() {
             // Save to localStorage
             localStorage.setItem('miprinters_settings', JSON.stringify(settings));
 
-            // Could also save to Supabase here if needed
-            // await supabase.from('owner_profile').update(settings).eq('id', ownerId);
+            // Save to Supabase
+            const supabase = createClient();
+            const { data: { user } } = await supabase.auth.getUser();
+
+            if (user) {
+                const { error } = await supabase.from('owner_profiles').upsert({
+                    id: user.id,
+                    business_name: settings.businessName,
+                    phone: settings.phone,
+                    email: settings.email,
+                    address: settings.address,
+                    bank_name: settings.bankName,
+                    account_title: settings.accountTitle,
+                    account_number: settings.accountNumber,
+                    iban: settings.iban,
+                    invoice_prefix: settings.invoicePrefix,
+                    next_invoice_number: settings.nextInvoiceNumber,
+                    default_payment_terms: settings.defaultPaymentTerms,
+                    default_tax_rate: settings.defaultTaxRate,
+                    updated_at: new Date().toISOString(),
+                });
+
+                if (error) throw error;
+            }
 
             setSaveSuccess(true);
             setTimeout(() => setSaveSuccess(false), 3000);

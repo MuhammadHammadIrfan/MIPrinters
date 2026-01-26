@@ -268,6 +268,19 @@ export default function InvoiceDetailPage() {
 
         setIsGeneratingPDF(true);
         try {
+            // Load settings
+            const savedSettings = localStorage.getItem('miprinters_settings');
+            const settings = savedSettings ? JSON.parse(savedSettings) : {
+                businessName: 'MI Printers',
+                phone: '',
+                email: '',
+                address: '',
+                bankName: '',
+                accountTitle: '',
+                accountNumber: '',
+                iban: '',
+            };
+
             // Generate PDF by opening a new window with print-friendly view
             const pdfWindow = window.open('', '_blank');
             if (!pdfWindow) {
@@ -294,6 +307,7 @@ export default function InvoiceDetailPage() {
             body { font-family: Arial, sans-serif; padding: 40px; color: #333; max-width: 800px; margin: 0 auto; }
             .header { display: flex; justify-content: space-between; margin-bottom: 30px; }
             .logo { font-size: 24px; font-weight: bold; color: #16a34a; }
+            .business-info { font-size: 12px; color: #666; margin-top: 4px; line-height: 1.4; }
             .invoice-title { font-size: 28px; color: #666; }
             .invoice-number { font-size: 18px; color: #16a34a; font-weight: bold; }
             .section { margin-bottom: 20px; }
@@ -311,8 +325,12 @@ export default function InvoiceDetailPage() {
         <body>
           <div class="header">
             <div>
-              <div class="logo">MI Printers</div>
-              <div style="font-size: 12px; color: #666; margin-top: 4px;">Quality Printing Services</div>
+              <div class="logo">${settings.businessName}</div>
+              <div class="business-info">
+                ${settings.address ? `<div>${settings.address}</div>` : ''}
+                ${settings.phone ? `<div>Phone: ${settings.phone}</div>` : ''}
+                ${settings.email ? `<div>Email: ${settings.email}</div>` : ''}
+              </div>
             </div>
             <div style="text-align: right;">
               <div class="invoice-title">INVOICE</div>
@@ -364,8 +382,19 @@ export default function InvoiceDetailPage() {
           ${invoice.notes ? `<div class="footer"><strong>Notes:</strong> ${invoice.notes}</div>` : ''}
 
           <div class="footer">
-            <strong>Payment Info:</strong> Bank transfer or cash payment accepted.<br>
-            Thank you for your business!
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div>
+                <strong>Payment Info:</strong><br>
+                ${settings.bankName ? `Bank: ${settings.bankName}<br>` : ''}
+                ${settings.accountTitle ? `Title: ${settings.accountTitle}<br>` : ''}
+                ${settings.accountNumber ? `Account: ${settings.accountNumber}<br>` : ''}
+                ${settings.iban ? `IBAN: ${settings.iban}` : ''}
+                ${!settings.bankName && !settings.accountNumber ? 'Cash payment accepted.' : ''}
+              </div>
+              <div style="text-align: right;">
+                Thank you for your business!
+              </div>
+            </div>
           </div>
 
           <script>window.onload = function() { window.print(); }</script>

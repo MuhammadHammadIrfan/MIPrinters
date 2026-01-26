@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
 
 interface BusinessInfo {
     businessName: string;
@@ -20,33 +21,57 @@ export default function ContactPage() {
     const [businessInfo, setBusinessInfo] = useState<BusinessInfo | null>(null);
 
     // Load business info from localStorage (saved in settings)
+    // Load business info
     useEffect(() => {
-        const saved = localStorage.getItem('miprinters_settings');
-        if (saved) {
-            try {
-                const parsed = JSON.parse(saved);
-                setBusinessInfo({
-                    businessName: parsed.businessName || 'MI Printers',
-                    phone: parsed.phone || '',
-                    email: parsed.email || '',
-                    address: parsed.address || 'Lahore, Pakistan',
-                });
-            } catch {
-                setBusinessInfo({
-                    businessName: 'MI Printers',
-                    phone: '',
-                    email: '',
-                    address: 'Lahore, Pakistan',
-                });
+        const loadInfo = async () => {
+            // 1. Try localStorage first (fastest)
+            const saved = localStorage.getItem('miprinters_settings');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    setBusinessInfo({
+                        businessName: parsed.businessName || 'MI Printers',
+                        phone: parsed.phone || '',
+                        email: parsed.email || '',
+                        address: parsed.address || 'Lahore, Pakistan',
+                    });
+                    return; // Found in local storage, we're good
+                } catch {
+                    console.error('Failed to parse saved settings');
+                }
             }
-        } else {
-            setBusinessInfo({
-                businessName: 'MI Printers',
-                phone: '',
-                email: '',
-                address: 'Lahore, Pakistan',
-            });
-        }
+
+            // 2. Fetch from Supabase (public profile)
+            try {
+                const supabase = createClient();
+                const { data, error } = await supabase
+                    .from('owner_profiles')
+                    .select('business_name, phone, email, address')
+                    .limit(1)
+                    .single();
+
+                if (data && !error) {
+                    setBusinessInfo({
+                        businessName: data.business_name || 'MI Printers',
+                        phone: data.phone || '',
+                        email: data.email || '',
+                        address: data.address || 'Lahore, Pakistan',
+                    });
+                } else {
+                    // Fallback default
+                    setBusinessInfo({
+                        businessName: 'MI Printers',
+                        phone: '',
+                        email: '',
+                        address: 'Lahore, Pakistan',
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to load business info:', error);
+            }
+        };
+
+        loadInfo();
     }, []);
 
     const handleWhatsAppSubmit = () => {
