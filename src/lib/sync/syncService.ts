@@ -216,6 +216,55 @@ export async function pullFromCloud(): Promise<void> {
             }
         }
 
+        // Pull suppliers
+        const { data: cloudSuppliers, error: suppliersError } = await supabase
+            .from('suppliers')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (suppliersError) {
+            console.error('Failed to pull suppliers:', suppliersError.message);
+        } else if (cloudSuppliers && cloudSuppliers.length > 0) {
+            console.log(`Pulled ${cloudSuppliers.length} suppliers from cloud`);
+
+            for (const cloudSup of cloudSuppliers) {
+                const existingById = await db.suppliers.filter(s => s.id === cloudSup.id).first();
+                const existingByLocalId = cloudSup.local_id
+                    ? await db.suppliers.get(cloudSup.local_id)
+                    : null;
+
+                if (existingById || existingByLocalId) {
+                    const existing = existingById || existingByLocalId;
+                    if (existing && existing.syncStatus !== 'pending') {
+                        await db.suppliers.update(existing.localId, {
+                            id: cloudSup.id,
+                            name: cloudSup.name,
+                            phone: cloudSup.phone || undefined,
+                            supplierType: cloudSup.supplier_type || 'other',
+                            notes: cloudSup.notes || undefined,
+                            isActive: cloudSup.is_active,
+                            syncStatus: 'synced',
+                            updatedAt: new Date(cloudSup.updated_at).getTime(),
+                        });
+                    }
+                } else {
+                    const localId = cloudSup.local_id || generateLocalId();
+                    await db.suppliers.add({
+                        localId,
+                        id: cloudSup.id,
+                        name: cloudSup.name,
+                        phone: cloudSup.phone || undefined,
+                        supplierType: cloudSup.supplier_type || 'other',
+                        notes: cloudSup.notes || undefined,
+                        isActive: cloudSup.is_active,
+                        syncStatus: 'synced',
+                        createdAt: new Date(cloudSup.created_at).getTime(),
+                        updatedAt: new Date(cloudSup.updated_at).getTime(),
+                    });
+                }
+            }
+        }
+
         hasPulledFromCloud = true;
         console.log('Cloud pull completed successfully');
     } catch (error) {
@@ -358,6 +407,43 @@ async function syncInvoices() {
     }
 }
 
+
+async function syncSuppliers() {
+    const supabase = createClient();
+    const pendingSuppliers = await db.suppliers
+        .filter(s => s.syncStatus === 'pending')
+        .toArray();
+
+    console.log(`Syncing ${pendingSuppliers.length} pending suppliers...`);
+
+    for (const supplier of pendingSuppliers) {
+        try {
+            const { data, error } = await supabase.rpc('sync_supplier', {
+                p_local_id: supplier.localId,
+                p_name: supplier.name,
+                p_phone: supplier.phone || null,
+                p_supplier_type: supplier.supplierType || 'other',
+                p_notes: supplier.notes || null,
+                p_is_active: supplier.isActive !== false,
+            });
+
+            if (error) {
+                console.error('Sync supplier error:', error.message);
+                continue;
+            }
+
+            await db.suppliers.update(supplier.localId, {
+                id: data,
+                syncStatus: 'synced',
+            });
+
+            console.log(`Synced supplier: ${supplier.name}`);
+        } catch (err) {
+            console.error('Failed to sync supplier:', supplier.localId, err);
+        }
+    }
+}
+
 // Main sync function - both pull and push
 export async function runSync(): Promise<void> {
     if (syncState.status === 'syncing') {
@@ -378,6 +464,7 @@ export async function runSync(): Promise<void> {
 
         // Then push local changes to cloud
         await syncCustomers();
+        await syncSuppliers();
         await syncInvoices();
 
         syncState = {

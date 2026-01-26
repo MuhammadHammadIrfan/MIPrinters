@@ -70,6 +70,14 @@ self.addEventListener('fetch', (event) => {
           }
           // If not in cache either, return offline page for navigation
           if (event.request.mode === 'navigate') {
+            const url = new URL(event.request.url);
+            if (url.pathname.startsWith('/dashboard') || 
+                url.pathname.startsWith('/invoices') || 
+                url.pathname.startsWith('/customers') || 
+                url.pathname.startsWith('/suppliers') || 
+                url.pathname.startsWith('/settings')) {
+              return caches.match('/dashboard');
+            }
             return caches.match('/');
           }
           return new Response('Offline', { status: 503, statusText: 'Offline' });
