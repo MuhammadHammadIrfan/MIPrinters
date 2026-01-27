@@ -76,35 +76,42 @@ export default function SettingsPage() {
 
         // 2. Fetch from Cloud (source of truth)
         const fetchProfile = async () => {
-            const supabase = createClient();
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
+            console.log('🔄 [Settings] Fetching profile from Supabase...');
+            try {
+                const supabase = createClient();
+                const { data, error } = await supabase
+                    .from('owner_profile')
+                    .select('*')
+                    .limit(1)
+                    .single();
 
-            const { data, error } = await supabase
-                .from('owner_profile')
-                .select('*')
-                .eq('id', user.id)
-                .single();
+                console.log('📥 [Settings] Supabase response:', { data, error });
 
-            if (data && !error) {
-                const cloudSettings: BusinessSettings = {
-                    businessName: data.business_name || 'MI Printers',
-                    phone: data.phone || '',
-                    email: data.email || '',
-                    address: data.address || '',
-                    bankName: data.bank_name || '',
-                    accountTitle: data.account_title || '',
-                    accountNumber: data.account_number || '',
-                    iban: data.iban || '',
-                    invoicePrefix: data.invoice_prefix || 'INV',
-                    nextInvoiceNumber: data.next_invoice_number || 1,
-                    defaultPaymentTerms: data.default_payment_terms || 7,
-                    defaultTaxRate: data.default_tax_rate || 0,
-                };
+                if (data && !error) {
+                    const cloudSettings: BusinessSettings = {
+                        businessName: data.business_name || 'MI Printers',
+                        phone: data.phone || '',
+                        email: data.email || '',
+                        address: data.address || '',
+                        bankName: data.bank_name || '',
+                        accountTitle: data.account_title || '',
+                        accountNumber: data.account_number || '',
+                        iban: data.iban || '',
+                        invoicePrefix: data.invoice_prefix || 'INV',
+                        nextInvoiceNumber: data.next_invoice_number || 1,
+                        defaultPaymentTerms: data.default_payment_terms || 7,
+                        defaultTaxRate: data.default_tax_rate || 0,
+                    };
 
-                setSettings(cloudSettings);
-                // Update cache
-                localStorage.setItem('miprinters_settings', JSON.stringify(cloudSettings));
+                    setSettings(cloudSettings);
+                    // Update cache
+                    localStorage.setItem('miprinters_settings', JSON.stringify(cloudSettings));
+                    console.log('✅ [Settings] Loaded settings from cloud');
+                } else if (error) {
+                    console.warn('⚠️ [Settings] No profile found or error:', error.message);
+                }
+            } catch (err) {
+                console.error('❌ [Settings] Failed to fetch profile:', err);
             }
         };
 
@@ -116,18 +123,25 @@ export default function SettingsPage() {
     const handleSaveSettings = async () => {
         setIsSaving(true);
         setSaveSuccess(false);
+        console.log('💾 [Settings] Saving settings...', settings);
 
         try {
-            // Save to localStorage
+            // Save to localStorage first (instant offline cache)
             localStorage.setItem('miprinters_settings', JSON.stringify(settings));
+            console.log('✅ [Settings] Saved to localStorage');
 
-            // Save to Supabase
-            const supabase = createClient();
-            const { data: { user } } = await supabase.auth.getUser();
+            // Save to Supabase if online
+            if (navigator.onLine) {
+                const supabase = createClient();
 
-            if (user) {
-                const { error } = await supabase.from('owner_profile').upsert({
-                    id: user.id,
+                // First, check if a profile row exists
+                const { data: existingProfile } = await supabase
+                    .from('owner_profile')
+                    .select('id')
+                    .limit(1)
+                    .single();
+
+                const payload = {
                     business_name: settings.businessName,
                     phone: settings.phone,
                     email: settings.email,
@@ -141,16 +155,38 @@ export default function SettingsPage() {
                     default_payment_terms: settings.defaultPaymentTerms,
                     default_tax_rate: settings.defaultTaxRate,
                     updated_at: new Date().toISOString(),
-                });
+                };
+                console.log('📤 [Settings] Payload:', payload);
 
-                if (error) throw error;
+                let result;
+                if (existingProfile?.id) {
+                    // Update existing row
+                    console.log('📤 [Settings] Updating existing profile:', existingProfile.id);
+                    result = await supabase
+                        .from('owner_profile')
+                        .update(payload)
+                        .eq('id', existingProfile.id)
+                        .select();
+                } else {
+                    // Insert new row (first time setup)
+                    console.log('� [Settings] Inserting new profile row');
+                    result = await supabase
+                        .from('owner_profile')
+                        .insert({ ...payload, id: crypto.randomUUID() })
+                        .select();
+                }
+
+                console.log('📥 [Settings] Supabase response:', result);
+                if (result.error) throw result.error;
+            } else {
+                console.log('⚠️ [Settings] Offline - saved to localStorage only');
             }
 
             setSaveSuccess(true);
             setTimeout(() => setSaveSuccess(false), 3000);
         } catch (error) {
-            console.error('Failed to save settings:', error);
-            alert('Failed to save settings');
+            console.error('❌ Failed to save settings:', error);
+            alert('Failed to save settings to cloud. Changes saved locally.');
         } finally {
             setIsSaving(false);
         }

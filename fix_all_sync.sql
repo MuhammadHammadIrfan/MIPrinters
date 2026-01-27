@@ -149,33 +149,43 @@ $$;
 GRANT EXECUTE ON FUNCTION sync_invoice TO authenticated;
 
 -- =============================================
--- FIX 4: Policies for settings and other tables
+-- FIX 4: RLS Policies
 -- =============================================
--- Owner Profile
+-- IMPORTANT: This app uses CUSTOM AUTHENTICATION (password in owner_profile)
+-- NOT Supabase Auth. So we need to allow 'anon' role to access data.
+-- For production, consider using service_role key instead.
+
+-- Owner Profile (settings)
+ALTER TABLE owner_profile ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Owner can do everything on profile" ON owner_profile;
-CREATE POLICY "Owner can do everything on profile" ON owner_profile
-    FOR ALL USING (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Public read and write for owner_profile" ON owner_profile;
+CREATE POLICY "Public read and write for owner_profile" ON owner_profile
+    FOR ALL USING (true) WITH CHECK (true);
 
 -- Suppliers
 ALTER TABLE suppliers ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Authenticated users can do everything on suppliers" ON suppliers;
-CREATE POLICY "Authenticated users can do everything on suppliers" ON suppliers
-    FOR ALL USING (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Public access to suppliers" ON suppliers;
+CREATE POLICY "Public access to suppliers" ON suppliers
+    FOR ALL USING (true) WITH CHECK (true);
 
 -- Customers
 ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Authenticated users can do everything on customers" ON customers;
-CREATE POLICY "Authenticated users can do everything on customers" ON customers
-    FOR ALL USING (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Public access to customers" ON customers;
+CREATE POLICY "Public access to customers" ON customers
+    FOR ALL USING (true) WITH CHECK (true);
 
 -- Invoices
 ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Authenticated users can do everything on invoices" ON invoices;
-CREATE POLICY "Authenticated users can do everything on invoices" ON invoices
-    FOR ALL USING (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Public access to invoices" ON invoices;
+CREATE POLICY "Public access to invoices" ON invoices
+    FOR ALL USING (true) WITH CHECK (true);
 
 -- Invoice Items
 ALTER TABLE invoice_items ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Authenticated users can do everything on invoice_items" ON invoice_items;
-CREATE POLICY "Authenticated users can do everything on invoice_items" ON invoice_items
-    FOR ALL USING (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Public access to invoice_items" ON invoice_items;
+CREATE POLICY "Public access to invoice_items" ON invoice_items
+    FOR ALL USING (true) WITH CHECK (true);
