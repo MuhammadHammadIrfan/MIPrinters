@@ -45,7 +45,7 @@ export default function ContactPage() {
             try {
                 const supabase = createClient();
                 const { data, error } = await supabase
-                    .from('owner_profiles')
+                    .from('owner_profile')
                     .select('business_name, phone, email, address')
                     .limit(1)
                     .single();

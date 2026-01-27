@@ -13,6 +13,7 @@ interface InvoiceFormState {
     invoiceDate: string;
     dueDate: string;
     items: InvoiceFormItem[];
+    customColumns: { id: string; label: string }[];
 
     // Additional charges
     designCharges: number;
@@ -46,6 +47,9 @@ interface InvoiceFormState {
     addItem: () => void;
     removeItem: (localId: string) => void;
     updateItem: (localId: string, field: keyof InvoiceFormItem, value: string | number) => void;
+    updateItemCustomValue: (localId: string, columnId: string, value: string) => void;
+    addCustomColumn: (label: string) => void;
+    removeCustomColumn: (columnId: string) => void;
     replicateValue: (startLocalId: string, field: keyof InvoiceFormItem, rowCount: number) => void;
 
     setDesignCharges: (amount: number) => void;
@@ -85,6 +89,7 @@ export const useInvoiceFormStore = create<InvoiceFormState>((set, get) => ({
     invoiceDate: new Date().toISOString().split('T')[0],
     dueDate: getDefaultDueDate(),
     items: [createEmptyItem()],
+    customColumns: [],
 
     designCharges: 0,
     deliveryCharges: 0,
@@ -134,6 +139,35 @@ export const useInvoiceFormStore = create<InvoiceFormState>((set, get) => ({
         });
         set({ items: newItems });
         get().recalculateTotals();
+    },
+
+    updateItemCustomValue: (localId, columnId, value) => {
+        const { items } = get();
+        const newItems = items.map((item) => {
+            if (item.localId === localId) {
+                return {
+                    ...item,
+                    customValues: {
+                        ...(item.customValues || {}),
+                        [columnId]: value
+                    }
+                };
+            }
+            return item;
+        });
+        set({ items: newItems });
+    },
+
+    addCustomColumn: (label) => {
+        const { customColumns } = get();
+        const id = `col_${Date.now()}`;
+        set({ customColumns: [...customColumns, { id, label }] });
+    },
+
+    removeCustomColumn: (columnId) => {
+        const { customColumns } = get();
+        set({ customColumns: customColumns.filter(c => c.id !== columnId) });
+        // Optional: Cleanup values from items? Not strictly necessary for functionality.
     },
 
     replicateValue: (startLocalId, field, rowCount) => {
@@ -207,6 +241,7 @@ export const useInvoiceFormStore = create<InvoiceFormState>((set, get) => ({
             invoiceDate: new Date().toISOString().split('T')[0],
             dueDate: getDefaultDueDate(),
             items: [createEmptyItem()],
+            customColumns: [],
             designCharges: 0,
             deliveryCharges: 0,
             taxRate: 0,
@@ -247,7 +282,9 @@ export const useInvoiceFormStore = create<InvoiceFormState>((set, get) => ({
                     rate: item.rate,
                     cost: item.cost,
                     supplierId: item.supplierId,
+                    customValues: item.customValues || {},
                 })),
+                customColumns: invoice.customColumns || [],
                 designCharges: invoice.designCharges,
                 deliveryCharges: invoice.deliveryCharges,
                 taxRate: invoice.taxRate,
@@ -282,6 +319,7 @@ export const useInvoiceFormStore = create<InvoiceFormState>((set, get) => ({
                 invoiceNumber: state.editingInvoiceId ? (await db.invoices.get(state.editingInvoiceId))?.invoiceNumber || invoiceNumber : invoiceNumber,
                 invoiceDate: new Date(state.invoiceDate).getTime(),
                 dueDate: state.dueDate ? new Date(state.dueDate).getTime() : undefined,
+                customColumns: state.customColumns,
                 subtotal: state.subtotal,
                 taxAmount: state.taxAmount,
                 totalAmount: state.totalAmount,
@@ -329,6 +367,7 @@ export const useInvoiceFormStore = create<InvoiceFormState>((set, get) => ({
                     cost: item.cost || 0,
                     itemMargin: item.quantity * item.rate - item.quantity * (item.cost || 0),
                     supplierId: item.supplierId,
+                    customValues: item.customValues,
                     createdAt: now,
                 }));
 

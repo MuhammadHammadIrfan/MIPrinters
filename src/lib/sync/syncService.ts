@@ -146,6 +146,7 @@ export async function pullFromCloud(): Promise<void> {
                             notes: cloudInv.notes || undefined,
                             internalNotes: cloudInv.internal_notes || undefined,
                             status: cloudInv.status,
+                            customColumns: cloudInv.custom_columns || [],
                             syncStatus: 'synced',
                             updatedAt: new Date(cloudInv.updated_at).getTime(),
                         });
@@ -176,6 +177,7 @@ export async function pullFromCloud(): Promise<void> {
                         notes: cloudInv.notes || undefined,
                         internalNotes: cloudInv.internal_notes || undefined,
                         status: cloudInv.status,
+                        customColumns: cloudInv.custom_columns || [],
                         syncStatus: 'synced',
                         createdAt: new Date(cloudInv.created_at).getTime(),
                         updatedAt: new Date(cloudInv.updated_at).getTime(),
@@ -207,6 +209,7 @@ export async function pullFromCloud(): Promise<void> {
                                     cost: item.cost || 0,
                                     itemMargin: item.item_margin || 0,
                                     supplierId: item.supplier_id || undefined,
+                                    customValues: item.custom_values || {},
                                     createdAt: Date.now(),
                                 });
                             }
@@ -355,6 +358,7 @@ async function syncInvoices() {
                 p_notes: invoice.notes || null,
                 p_internal_notes: invoice.internalNotes || null,
                 p_status: invoice.status || 'final',
+                p_custom_columns: invoice.customColumns || [],
             });
 
             if (error) {
@@ -389,6 +393,7 @@ async function syncInvoices() {
                     item_margin: item.itemMargin || 0,
                     supplier_id: null,
                     local_id: item.localId,
+                    custom_values: item.customValues || {},
                 }));
 
                 const { error: itemsError } = await supabase

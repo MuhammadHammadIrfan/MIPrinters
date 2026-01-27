@@ -288,12 +288,15 @@ export default function InvoiceDetailPage() {
                 return;
             }
 
+            const customColumns = invoice.customColumns || [];
+
             const itemsHtml = items.map((item, i) => `
         <tr>
           <td style="padding: 8px; border-bottom: 1px solid #eee;">${i + 1}</td>
           <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.description}</td>
           <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${item.quantity}</td>
           <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">Rs. ${item.rate.toLocaleString()}</td>
+          ${customColumns.map(col => `<td style="padding: 8px; border-bottom: 1px solid #eee;">${item.customValues?.[col.id] || '-'}</td>`).join('')}
           <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold;">Rs. ${item.amount.toLocaleString()}</td>
         </tr>
       `).join('');
@@ -356,6 +359,7 @@ export default function InvoiceDetailPage() {
                 <th>Description</th>
                 <th style="width: 80px; text-align: right;">Qty</th>
                 <th style="width: 100px; text-align: right;">Rate</th>
+                ${customColumns.map(col => `<th style="text-align: left;">${col.label}</th>`).join('')}
                 <th style="width: 120px; text-align: right;">Amount</th>
               </tr>
             </thead>

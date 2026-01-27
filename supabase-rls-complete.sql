@@ -60,13 +60,9 @@ CREATE POLICY "Owner can do everything on sync_queue" ON sync_queue
 -- 3. OWNER PROFILE SPECIFIC POLICIES
 -- ============================================
 
--- Allow Owner to update their own profile
-CREATE POLICY "Owner can update profile" ON owner_profile
-    FOR UPDATE USING (auth.role() = 'authenticated');
-
--- Allow Owner to view profile
-CREATE POLICY "Owner can view profile" ON owner_profile
-    FOR SELECT USING (auth.role() = 'authenticated');
+-- Allow Owner to do EVERYTHING on their own profile
+CREATE POLICY "Owner can do everything on profile" ON owner_profile
+    FOR ALL USING (auth.role() = 'authenticated');
 
 -- Allow Public to VIEW business info (for Contact Page)
 -- This is critical for the website to work for visitors

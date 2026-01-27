@@ -100,6 +100,9 @@ export interface Invoice {
     // Signed photos (multiple allowed)
     signedPhotos: SignedPhoto[];
 
+    // Dynamic Columns
+    customColumns?: { id: string; label: string }[];
+
     // Items
     items: InvoiceItem[];
     payments: Payment[];
@@ -131,6 +134,9 @@ export interface InvoiceItem {
     rate: number; // Customer-facing
     amount: number; // qty × rate
 
+    // Dynamic Values
+    customValues?: Record<string, string>;
+
     // INTERNAL - never on PDF
     cost: number;
     itemMargin: number;
@@ -147,6 +153,7 @@ export interface InvoiceItemInput {
     rate: number;
     cost?: number; // Internal
     supplierId?: string;
+    customValues?: Record<string, string>;
 }
 
 export interface InvoiceInput {
@@ -154,6 +161,7 @@ export interface InvoiceInput {
     invoiceDate?: Date;
     dueDate?: Date;
     items: InvoiceItemInput[];
+    customColumns?: { id: string; label: string }[];
     designCharges?: number;
     deliveryCharges?: number;
     taxRate?: number;

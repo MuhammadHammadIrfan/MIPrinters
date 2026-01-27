@@ -8,19 +8,24 @@ import { useCustomerStore } from '@/stores/customerStore';
 import { formatCurrency, formatNumber } from '@/lib/utils/formatters';
 
 // Mobile-friendly line item component with long-press replication
+// Mobile-friendly line item component with long-press replication
 function LineItemRow({
     item,
     index,
+    customColumns,
     onUpdate,
+    onUpdateCustomValue,
     onRemove,
     onReplicateField,
     onReplicateRow,
     canRemove,
     isMobile
 }: {
-    item: { localId: string; description: string; quantity: number; rate: number; cost?: number; unit?: string };
+    item: { localId: string; description: string; quantity: number; rate: number; cost?: number; unit?: string; customValues?: Record<string, string> };
     index: number;
+    customColumns: { id: string; label: string }[];
     onUpdate: (localId: string, field: 'localId' | 'description' | 'quantity' | 'rate' | 'cost' | 'unit', value: string | number) => void;
+    onUpdateCustomValue: (localId: string, columnId: string, value: string) => void;
     onRemove: (localId: string) => void;
     onReplicateField: (localId: string, field: string) => void;
     onReplicateRow: (localId: string) => void;
@@ -107,6 +112,19 @@ function LineItemRow({
                             className="w-full px-2 py-1.5 text-sm text-right border border-gray-200 rounded-lg focus:border-green-500 focus:outline-none"
                         />
                     </div>
+                    {customColumns.map(col => (
+                        <div key={col.id}>
+                            <label className="block text-xs text-gray-500 mb-1">{col.label}</label>
+                            <input
+                                type="text"
+                                value={item.customValues?.[col.id] || ''}
+                                onChange={(e) => onUpdateCustomValue(item.localId, col.id, e.target.value)}
+                                onTouchStart={() => handleLongPressStart(`custom_${col.id}`)}
+                                onTouchEnd={handleLongPressEnd}
+                                className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:border-green-500 focus:outline-none"
+                            />
+                        </div>
+                    ))}
                     <div>
                         <label className="block text-xs text-gray-500 mb-1">Amount</label>
                         <div className="px-2 py-1.5 text-sm text-right font-medium text-gray-900 bg-gray-50 rounded-lg">
@@ -164,9 +182,21 @@ function LineItemRow({
                     onMouseLeave={handleLongPressEnd}
                     placeholder="0.00"
                     step="0.01"
+                    step="0.01"
                     className="w-full px-2 py-1.5 text-sm text-right border border-transparent rounded hover:border-gray-200 focus:border-green-500 focus:outline-none"
                 />
             </td>
+            {customColumns.map(col => (
+                <td key={col.id} className="px-2 py-2 w-24">
+                    <input
+                        type="text"
+                        value={item.customValues?.[col.id] || ''}
+                        onChange={(e) => onUpdateCustomValue(item.localId, col.id, e.target.value)}
+                        placeholder="--"
+                        className="w-full px-2 py-1.5 text-sm border border-transparent rounded hover:border-gray-200 focus:border-green-500 focus:outline-none"
+                    />
+                </td>
+            ))}
             <td className="px-2 py-2 w-28 text-right text-sm font-medium text-gray-900">
                 {formatNumber(amount)}
             </td>
@@ -243,6 +273,10 @@ function NewInvoicePageContent() {
     const [showAdditionalCharges, setShowAdditionalCharges] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
 
+    // Custom Column State
+    const [showColumnModal, setShowColumnModal] = useState(false);
+    const [newColumnName, setNewColumnName] = useState('');
+
     // Load real customers
     const { customers, loadCustomers, isInitialized: customersLoaded } = useCustomerStore();
     const setCustomerIdFromUrl = useInvoiceFormStore((s) => s.setCustomerId);
@@ -274,6 +308,7 @@ function NewInvoicePageContent() {
         invoiceDate,
         dueDate,
         items,
+        customColumns,
         designCharges,
         deliveryCharges,
         taxRate,
@@ -294,6 +329,9 @@ function NewInvoicePageContent() {
         addItem,
         removeItem,
         updateItem,
+        updateItemCustomValue,
+        addCustomColumn,
+        removeCustomColumn,
         replicateValue,
         setDesignCharges,
         setDeliveryCharges,
@@ -327,6 +365,15 @@ function NewInvoicePageContent() {
                 replicateValue(replicationTarget.localId, replicationTarget.field as never, count);
             }
         }
+    };
+
+
+
+    const handleAddColumn = () => {
+        if (!newColumnName.trim()) return;
+        addCustomColumn(newColumnName.trim());
+        setNewColumnName('');
+        setShowColumnModal(false);
     };
 
     const handleSave = async (asDraft = false) => {
@@ -422,6 +469,15 @@ function NewInvoicePageContent() {
                                     onReplicateField={handleReplicateField}
                                     onReplicateRow={handleReplicateRow}
                                     canRemove={items.length > 1}
+                                    item={item}
+                                    index={index}
+                                    customColumns={customColumns}
+                                    onUpdate={updateItem}
+                                    onUpdateCustomValue={updateItemCustomValue}
+                                    onRemove={removeItem}
+                                    onReplicateField={handleReplicateField}
+                                    onReplicateRow={handleReplicateRow}
+                                    canRemove={items.length > 1}
                                     isMobile={true}
                                 />
                             ))}
@@ -436,6 +492,31 @@ function NewInvoicePageContent() {
                                         <th className="px-2 py-2 text-left text-xs font-semibold text-gray-500">Description</th>
                                         <th className="px-2 py-2 text-right text-xs font-semibold text-gray-500 w-20">Qty</th>
                                         <th className="px-2 py-2 text-right text-xs font-semibold text-gray-500 w-24">Rate</th>
+                                        <th className="px-2 py-2 text-right text-xs font-semibold text-gray-500 w-24">Rate</th>
+                                        {/* Dynamic Headers */}
+                                        {customColumns?.map(col => (
+                                            <th key={col.id} className="px-2 py-2 text-left text-xs font-semibold text-gray-500 min-w-[100px] group/col relative">
+                                                {col.label}
+                                                <button
+                                                    onClick={() => {
+                                                        if (confirm(`Remove column "${col.label}"?`)) removeCustomColumn(col.id);
+                                                    }}
+                                                    className="absolute top-1 right-1 text-red-400 opacity-0 group-hover/col:opacity-100 hover:text-red-600 font-bold"
+                                                    title="Remove Column"
+                                                >
+                                                    -
+                                                </button>
+                                            </th>
+                                        ))}
+                                        <th className="px-2 py-2 text-left w-6">
+                                            <button
+                                                onClick={() => setShowColumnModal(true)}
+                                                className="text-green-600 hover:text-green-700 font-bold text-lg"
+                                                title="Add Column"
+                                            >
+                                                +
+                                            </button>
+                                        </th>
                                         <th className="px-2 py-2 text-right text-xs font-semibold text-gray-500 w-28">Amount</th>
                                         <th className="px-2 py-2 w-10"></th>
                                     </tr>
@@ -447,6 +528,13 @@ function NewInvoicePageContent() {
                                             item={item}
                                             index={index}
                                             onUpdate={updateItem}
+                                            onRemove={removeItem}
+                                            onReplicateField={handleReplicateField}
+                                            onReplicateRow={handleReplicateRow}
+                                            index={index}
+                                            customColumns={customColumns}
+                                            onUpdate={updateItem}
+                                            onUpdateCustomValue={updateItemCustomValue}
                                             onRemove={removeItem}
                                             onReplicateField={handleReplicateField}
                                             onReplicateRow={handleReplicateRow}
@@ -654,6 +742,40 @@ function NewInvoicePageContent() {
                 type={replicationTarget?.type || 'field'}
                 field={replicationTarget?.field || ''}
             />
+
+            {/* Column Name Modal */}
+            {showColumnModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="w-full max-w-sm bg-white rounded-xl shadow-xl p-4">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-3">Add Custom Column</h3>
+                        <input
+                            type="text"
+                            value={newColumnName}
+                            onChange={(e) => setNewColumnName(e.target.value)}
+                            placeholder="Column Name (e.g. Warranty, Color)"
+                            className="input mb-4"
+                            autoFocus
+                        />
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => {
+                                    setShowColumnModal(false);
+                                    setNewColumnName('');
+                                }}
+                                className="btn-secondary flex-1"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleAddColumn}
+                                className="btn-primary flex-1"
+                            >
+                                Add
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }

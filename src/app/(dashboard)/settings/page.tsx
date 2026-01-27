@@ -50,6 +50,11 @@ export default function SettingsPage() {
     const [passwordSuccess, setPasswordSuccess] = useState('');
     const [isChangingPassword, setIsChangingPassword] = useState(false);
 
+    // App Lock State
+    const [lockEnabled, setLockEnabled] = useState(false);
+    const [lockPin, setLockPin] = useState('');
+    const [isSettingLock, setIsSettingLock] = useState(false);
+
     // Load settings from localStorage on mount
 
     // Load settings from localStorage AND Cloud on mount
@@ -65,6 +70,10 @@ export default function SettingsPage() {
             }
         }
 
+        // Load Lock Settings
+        setLockEnabled(localStorage.getItem('app_lock_enabled') === 'true');
+        setLockPin(localStorage.getItem('app_lock_pin') || '');
+
         // 2. Fetch from Cloud (source of truth)
         const fetchProfile = async () => {
             const supabase = createClient();
@@ -72,7 +81,7 @@ export default function SettingsPage() {
             if (!user) return;
 
             const { data, error } = await supabase
-                .from('owner_profiles')
+                .from('owner_profile')
                 .select('*')
                 .eq('id', user.id)
                 .single();
@@ -117,7 +126,7 @@ export default function SettingsPage() {
             const { data: { user } } = await supabase.auth.getUser();
 
             if (user) {
-                const { error } = await supabase.from('owner_profiles').upsert({
+                const { error } = await supabase.from('owner_profile').upsert({
                     id: user.id,
                     business_name: settings.businessName,
                     phone: settings.phone,
@@ -355,6 +364,64 @@ export default function SettingsPage() {
                 >
                     {isSaving ? 'Saving...' : saveSuccess ? '✓ Saved!' : 'Save Settings'}
                 </button>
+
+                <div className="border-t border-gray-200 my-6" />
+
+                {/* Security Section (App Lock) */}
+                <div className="card">
+                    <div className="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 className="font-semibold text-gray-900">App Security</h3>
+                            <p className="text-sm text-gray-500">Enable PIN/Biometric lock on startup</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                className="sr-only peer"
+                                checked={lockEnabled}
+                                onChange={(e) => {
+                                    if (e.target.checked && !lockPin) {
+                                        alert('Please set a PIN first');
+                                        return;
+                                    }
+                                    const newValue = e.target.checked;
+                                    setLockEnabled(newValue);
+                                    localStorage.setItem('app_lock_enabled', String(newValue));
+                                }}
+                            />
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                        </label>
+                    </div>
+
+                    {/* PIN Setup */}
+                    <div className="space-y-4">
+                        <label className="block text-sm font-medium text-gray-700">Set 4-Digit PIN</label>
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                maxLength={4}
+                                value={lockPin}
+                                onChange={(e) => {
+                                    const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                                    setLockPin(val);
+                                    localStorage.setItem('app_lock_pin', val);
+                                    // Auto-enable if PIN is set (user convenience)
+                                    if (val.length === 4 && !lockEnabled) {
+                                        // Don't auto-enable, let user do it explicitly
+                                    }
+                                }}
+                                className="input max-w-[150px] text-center tracking-[1em] font-mono text-lg"
+                                placeholder="----"
+                            />
+                            {lockEnabled && (
+                                <span className="text-xs text-green-600 flex items-center bg-green-50 px-2 rounded">
+                                    🔒 Lock Active
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                </div>
 
                 {/* Divider */}
                 <div className="border-t border-gray-200 my-6" />
