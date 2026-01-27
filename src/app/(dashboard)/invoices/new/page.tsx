@@ -8,7 +8,6 @@ import { useCustomerStore } from '@/stores/customerStore';
 import { formatCurrency, formatNumber } from '@/lib/utils/formatters';
 
 // Mobile-friendly line item component with long-press replication
-// Mobile-friendly line item component with long-press replication
 function LineItemRow({
     item,
     index,
@@ -181,7 +180,6 @@ function LineItemRow({
                     onMouseUp={handleLongPressEnd}
                     onMouseLeave={handleLongPressEnd}
                     placeholder="0.00"
-                    step="0.01"
                     step="0.01"
                     className="w-full px-2 py-1.5 text-sm text-right border border-transparent rounded hover:border-gray-200 focus:border-green-500 focus:outline-none"
                 />
@@ -464,13 +462,6 @@ function NewInvoicePageContent() {
                                     key={item.localId}
                                     item={item}
                                     index={index}
-                                    onUpdate={updateItem}
-                                    onRemove={removeItem}
-                                    onReplicateField={handleReplicateField}
-                                    onReplicateRow={handleReplicateRow}
-                                    canRemove={items.length > 1}
-                                    item={item}
-                                    index={index}
                                     customColumns={customColumns}
                                     onUpdate={updateItem}
                                     onUpdateCustomValue={updateItemCustomValue}
@@ -491,7 +482,6 @@ function NewInvoicePageContent() {
                                         <th className="px-2 py-2 text-left text-xs font-semibold text-gray-500 w-8">#</th>
                                         <th className="px-2 py-2 text-left text-xs font-semibold text-gray-500">Description</th>
                                         <th className="px-2 py-2 text-right text-xs font-semibold text-gray-500 w-20">Qty</th>
-                                        <th className="px-2 py-2 text-right text-xs font-semibold text-gray-500 w-24">Rate</th>
                                         <th className="px-2 py-2 text-right text-xs font-semibold text-gray-500 w-24">Rate</th>
                                         {/* Dynamic Headers */}
                                         {customColumns?.map(col => (
@@ -526,11 +516,6 @@ function NewInvoicePageContent() {
                                         <LineItemRow
                                             key={item.localId}
                                             item={item}
-                                            index={index}
-                                            onUpdate={updateItem}
-                                            onRemove={removeItem}
-                                            onReplicateField={handleReplicateField}
-                                            onReplicateRow={handleReplicateRow}
                                             index={index}
                                             customColumns={customColumns}
                                             onUpdate={updateItem}

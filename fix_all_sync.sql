@@ -57,6 +57,12 @@ GRANT EXECUTE ON FUNCTION sync_supplier TO authenticated;
 -- =============================================
 -- FIX 3: Update sync_invoice RPC (Add custom_columns)
 -- =============================================
+-- First, DROP the old function with the EXACT signature to avoid "function name is not unique" errors
+DROP FUNCTION IF EXISTS sync_invoice(TEXT, TEXT, UUID, DATE, DATE, DECIMAL, DECIMAL, DECIMAL, DECIMAL, DECIMAL, DECIMAL, DECIMAL, TEXT, DECIMAL, DECIMAL, DECIMAL, TEXT, DECIMAL, DECIMAL, TEXT, TEXT, TEXT);
+
+-- Also drop generic signature if it matches my previous attempts (TimeStamp) just in case
+DROP FUNCTION IF EXISTS sync_invoice(TEXT, TEXT, UUID, TIMESTAMP, TIMESTAMP, NUMERIC, NUMERIC, NUMERIC, NUMERIC, NUMERIC, NUMERIC, NUMERIC, TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, NUMERIC, NUMERIC, TEXT, TEXT, TEXT);
+
 CREATE OR REPLACE FUNCTION sync_invoice(
     p_local_id TEXT,
     p_invoice_number TEXT,
