@@ -13,8 +13,20 @@ function LoginForm() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [biometricAvailable, setBiometricAvailable] = useState(false);
 
     const redirectTo = searchParams.get('redirect') || '/dashboard';
+
+    // Check if biometric login is available
+    useEffect(() => {
+        const checkBiometric = () => {
+            const isSupported = window.PublicKeyCredential !== undefined;
+            const isEnabled = localStorage.getItem('biometric_enabled') === 'true';
+            const hasCredential = localStorage.getItem('biometric_credential_id') !== null;
+            setBiometricAvailable(isSupported && isEnabled && hasCredential);
+        };
+        checkBiometric();
+    }, []);
 
     // Redirect if already authenticated
     useEffect(() => {
@@ -22,6 +34,68 @@ function LoginForm() {
             router.push(redirectTo);
         }
     }, [isAuthenticated, router, redirectTo]);
+
+    // Handle biometric login
+    const handleBiometricLogin = async () => {
+        setLoading(true);
+        setError(null);
+
+        try {
+            const credentialId = localStorage.getItem('biometric_credential_id');
+            if (!credentialId) {
+                throw new Error('No biometric credential found');
+            }
+
+            // Convert base64 credential ID to Uint8Array
+            const credentialIdBytes = Uint8Array.from(atob(credentialId), c => c.charCodeAt(0));
+
+            // Generate a random challenge
+            const challenge = new Uint8Array(32);
+            crypto.getRandomValues(challenge);
+
+            // Request biometric authentication
+            const assertion = await navigator.credentials.get({
+                publicKey: {
+                    challenge,
+                    rpId: window.location.hostname,
+                    allowCredentials: [{
+                        id: credentialIdBytes,
+                        type: 'public-key',
+                        transports: ['internal'],
+                    }],
+                    userVerification: 'required',
+                    timeout: 60000,
+                },
+            });
+
+            if (assertion) {
+                // Biometric verified successfully - set auth state
+                // For single-owner app, we just need to verify the fingerprint matches
+                const savedSettings = localStorage.getItem('miprinters_settings');
+                let businessName = 'MI Printers';
+                let ownerEmail = 'owner@miprinters.pk';
+
+                if (savedSettings) {
+                    try {
+                        const parsed = JSON.parse(savedSettings);
+                        businessName = parsed.businessName || businessName;
+                        ownerEmail = parsed.email || ownerEmail;
+                    } catch {
+                        // Use defaults
+                    }
+                }
+
+                setAuth(ownerEmail, businessName);
+                router.push(redirectTo);
+                router.refresh();
+            }
+        } catch (err) {
+            console.error('Biometric login failed:', err);
+            setError('Biometric authentication failed. Please try password login.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -75,6 +149,29 @@ function LoginForm() {
                     </div>
                 )}
 
+                {/* Biometric Login Button */}
+                {biometricAvailable && (
+                    <div className="mb-6">
+                        <button
+                            type="button"
+                            onClick={handleBiometricLogin}
+                            disabled={isLoading}
+                            className="w-full py-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-3"
+                        >
+                            <span className="text-2xl">👆</span>
+                            <span>Login with Fingerprint</span>
+                        </button>
+                        <div className="relative my-4">
+                            <div className="absolute inset-0 flex items-center">
+                                <div className="w-full border-t border-gray-200"></div>
+                            </div>
+                            <div className="relative flex justify-center text-sm">
+                                <span className="px-3 bg-white text-gray-500">or use password</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <div className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -87,7 +184,7 @@ function LoginForm() {
                             placeholder="admin@miprinters.pk"
                             className="input"
                             autoComplete="email"
-                            autoFocus
+                            autoFocus={!biometricAvailable}
                             disabled={isLoading}
                         />
                     </div>
@@ -137,9 +234,11 @@ function LoginForm() {
             {/* Info box */}
             <div className="mt-6 text-center text-sm text-gray-400">
                 <p>🔒 Secure owner-only access</p>
-                <p className="mt-1">
-                    Default: admin@miprinters.pk / admin123
-                </p>
+                {!biometricAvailable && (
+                    <p className="mt-1 text-xs">
+                        💡 Register fingerprint in Settings for quick login
+                    </p>
+                )}
             </div>
         </div>
     );

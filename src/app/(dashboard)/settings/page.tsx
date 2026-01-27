@@ -50,12 +50,21 @@ export default function SettingsPage() {
     const [passwordSuccess, setPasswordSuccess] = useState('');
     const [isChangingPassword, setIsChangingPassword] = useState(false);
 
-    // App Lock State
-    const [lockEnabled, setLockEnabled] = useState(false);
-    const [lockPin, setLockPin] = useState('');
-    const [isSettingLock, setIsSettingLock] = useState(false);
+    // Biometric Auth State
+    const [biometricEnabled, setBiometricEnabled] = useState(false);
+    const [biometricSupported, setBiometricSupported] = useState(false);
+    const [biometricRegistered, setBiometricRegistered] = useState(false);
 
-    // Load settings from localStorage on mount
+    // Check biometric support and registration on mount
+    useEffect(() => {
+        // Check if WebAuthn is supported
+        const isSupported = window.PublicKeyCredential !== undefined;
+        setBiometricSupported(isSupported);
+
+        // Check if biometric is enabled in localStorage
+        setBiometricEnabled(localStorage.getItem('biometric_enabled') === 'true');
+        setBiometricRegistered(localStorage.getItem('biometric_credential_id') !== null);
+    }, []);
 
     // Load settings from localStorage AND Cloud on mount
     useEffect(() => {
@@ -69,10 +78,6 @@ export default function SettingsPage() {
                 console.error('Failed to parse saved settings');
             }
         }
-
-        // Load Lock Settings
-        setLockEnabled(localStorage.getItem('app_lock_enabled') === 'true');
-        setLockPin(localStorage.getItem('app_lock_pin') || '');
 
         // 2. Fetch from Cloud (source of truth)
         const fetchProfile = async () => {
@@ -403,60 +408,130 @@ export default function SettingsPage() {
 
                 <div className="border-t border-gray-200 my-6" />
 
-                {/* Security Section (App Lock) */}
+                {/* Security Section (Biometric Authentication) */}
                 <div className="card">
                     <div className="flex items-center justify-between mb-4">
                         <div>
-                            <h3 className="font-semibold text-gray-900">App Security</h3>
-                            <p className="text-sm text-gray-500">Enable PIN/Biometric lock on startup</p>
+                            <h3 className="font-semibold text-gray-900">Biometric Login</h3>
+                            <p className="text-sm text-gray-500">
+                                Use fingerprint or face recognition to login
+                            </p>
                         </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                                type="checkbox"
-                                className="sr-only peer"
-                                checked={lockEnabled}
-                                onChange={(e) => {
-                                    if (e.target.checked && !lockPin) {
-                                        alert('Please set a PIN first');
-                                        return;
-                                    }
-                                    const newValue = e.target.checked;
-                                    setLockEnabled(newValue);
-                                    localStorage.setItem('app_lock_enabled', String(newValue));
-                                }}
-                            />
-                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
-                        </label>
+                        {biometricSupported ? (
+                            <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                                ✓ Supported
+                            </span>
+                        ) : (
+                            <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
+                                Not Supported
+                            </span>
+                        )}
                     </div>
 
-                    {/* PIN Setup */}
-                    <div className="space-y-4">
-                        <label className="block text-sm font-medium text-gray-700">Set 4-Digit PIN</label>
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                inputMode="numeric"
-                                maxLength={4}
-                                value={lockPin}
-                                onChange={(e) => {
-                                    const val = e.target.value.replace(/\D/g, '').slice(0, 4);
-                                    setLockPin(val);
-                                    localStorage.setItem('app_lock_pin', val);
-                                    // Auto-enable if PIN is set (user convenience)
-                                    if (val.length === 4 && !lockEnabled) {
-                                        // Don't auto-enable, let user do it explicitly
-                                    }
-                                }}
-                                className="input max-w-[150px] text-center tracking-[1em] font-mono text-lg"
-                                placeholder="----"
-                            />
-                            {lockEnabled && (
-                                <span className="text-xs text-green-600 flex items-center bg-green-50 px-2 rounded">
-                                    🔒 Lock Active
-                                </span>
+                    {biometricSupported ? (
+                        <div className="space-y-4">
+                            {biometricRegistered ? (
+                                <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-2xl">👆</span>
+                                        <div>
+                                            <p className="font-medium text-green-800">Fingerprint Registered</p>
+                                            <p className="text-sm text-green-600">You can use biometric to login</p>
+                                        </div>
+                                    </div>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            className="sr-only peer"
+                                            checked={biometricEnabled}
+                                            onChange={(e) => {
+                                                const enabled = e.target.checked;
+                                                setBiometricEnabled(enabled);
+                                                localStorage.setItem('biometric_enabled', String(enabled));
+                                            }}
+                                        />
+                                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                                    </label>
+                                </div>
+                            ) : (
+                                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                                    <p className="text-sm text-gray-600 mb-3">
+                                        Register your fingerprint to enable quick login without password.
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            try {
+                                                // WebAuthn registration
+                                                const challenge = new Uint8Array(32);
+                                                crypto.getRandomValues(challenge);
+
+                                                const credential = await navigator.credentials.create({
+                                                    publicKey: {
+                                                        challenge,
+                                                        rp: {
+                                                            name: 'MI Printers',
+                                                            id: window.location.hostname,
+                                                        },
+                                                        user: {
+                                                            id: new TextEncoder().encode('owner'),
+                                                            name: 'owner@miprinters.pk',
+                                                            displayName: 'Owner',
+                                                        },
+                                                        pubKeyCredParams: [
+                                                            { alg: -7, type: 'public-key' },
+                                                            { alg: -257, type: 'public-key' },
+                                                        ],
+                                                        authenticatorSelection: {
+                                                            authenticatorAttachment: 'platform',
+                                                            userVerification: 'required',
+                                                        },
+                                                        timeout: 60000,
+                                                    },
+                                                });
+
+                                                if (credential) {
+                                                    const credentialId = btoa(String.fromCharCode(...new Uint8Array((credential as PublicKeyCredential).rawId)));
+                                                    localStorage.setItem('biometric_credential_id', credentialId);
+                                                    localStorage.setItem('biometric_enabled', 'true');
+                                                    setBiometricRegistered(true);
+                                                    setBiometricEnabled(true);
+                                                    alert('Fingerprint registered successfully! You can now use biometric login.');
+                                                }
+                                            } catch (error) {
+                                                console.error('Biometric registration failed:', error);
+                                                alert('Failed to register fingerprint. Please try again.');
+                                            }
+                                        }}
+                                        className="btn-primary flex items-center gap-2"
+                                    >
+                                        <span>👆</span>
+                                        Register Fingerprint
+                                    </button>
+                                </div>
+                            )}
+
+                            {biometricRegistered && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        localStorage.removeItem('biometric_credential_id');
+                                        localStorage.removeItem('biometric_enabled');
+                                        setBiometricRegistered(false);
+                                        setBiometricEnabled(false);
+                                    }}
+                                    className="text-sm text-red-600 hover:text-red-700"
+                                >
+                                    Remove Registered Fingerprint
+                                </button>
                             )}
                         </div>
-                    </div>
+                    ) : (
+                        <p className="text-sm text-gray-500">
+                            Your browser or device doesn&apos;t support biometric authentication.
+                            Please use a modern browser on a device with fingerprint or face recognition.
+                        </p>
+                    )}
                 </div>
 
                 {/* Divider */}
