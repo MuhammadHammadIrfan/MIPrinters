@@ -11,6 +11,21 @@ interface BusinessInfo {
     address: string;
 }
 
+// Helper to format phone for WhatsApp (Pakistan format)
+function formatPhoneForWhatsApp(phone: string): string {
+    // Remove all non-digits
+    let cleaned = phone.replace(/\D/g, '');
+    // If starts with 0, replace with 92 (Pakistan country code)
+    if (cleaned.startsWith('0')) {
+        cleaned = '92' + cleaned.substring(1);
+    }
+    // If doesn't start with 92, add it
+    if (!cleaned.startsWith('92')) {
+        cleaned = '92' + cleaned;
+    }
+    return cleaned;
+}
+
 export default function ContactPage() {
     const [formData, setFormData] = useState({
         name: '',
@@ -35,7 +50,7 @@ export default function ContactPage() {
                         email: parsed.email || '',
                         address: parsed.address || 'Lahore, Pakistan',
                     });
-                    return; // Found in local storage, we're good
+                    // Don't return - still fetch from Supabase for latest data
                 } catch {
                     console.error('Failed to parse saved settings');
                 }
@@ -89,7 +104,7 @@ ${formData.email ? `Email: ${formData.email}\n` : ''}
 Message:
 ${formData.message}`;
 
-        const phoneNumber = businessInfo?.phone?.replace(/\D/g, '') || '923001234567';
+        const phoneNumber = formatPhoneForWhatsApp(businessInfo?.phone || '03001234567');
         const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(whatsappMessage)}`;
 
         window.open(whatsappUrl, '_blank');
@@ -116,7 +131,7 @@ ${formData.message}`;
     };
 
     const displayPhone = businessInfo?.phone || '0300-1234567';
-    const cleanPhone = displayPhone.replace(/\D/g, '');
+    const whatsappPhone = formatPhoneForWhatsApp(businessInfo?.phone || '03001234567');
     const displayEmail = businessInfo?.email || 'info@miprinters.pk';
 
     return (
@@ -162,7 +177,7 @@ ${formData.message}`;
                                         <span className="text-2xl">📞</span>
                                         <div>
                                             <p className="font-medium text-gray-900">Phone</p>
-                                            <a href={`tel:+${cleanPhone}`} className="text-green-600 hover:text-green-700">
+                                            <a href={`tel:+${formatPhoneForWhatsApp(displayPhone)}`} className="text-green-600 hover:text-green-700">
                                                 {displayPhone}
                                             </a>
                                         </div>
@@ -181,7 +196,7 @@ ${formData.message}`;
                                         <div>
                                             <p className="font-medium text-gray-900">WhatsApp</p>
                                             <a
-                                                href={`https://wa.me/${cleanPhone || '923001234567'}`}
+                                                href={`https://wa.me/${whatsappPhone}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="text-green-600 hover:text-green-700"
@@ -202,8 +217,8 @@ ${formData.message}`;
 
                             <div className="card bg-green-50 border-green-200">
                                 <h2 className="text-lg font-bold text-gray-900 mb-2">Business Hours</h2>
-                                <p className="text-gray-600">Monday - Saturday: 9:00 AM - 7:00 PM</p>
-                                <p className="text-gray-600">Sunday: Closed</p>
+                                <p className="text-gray-600">Saturday - Thursday: 9:00 AM - 7:00 PM</p>
+                                <p className="text-gray-600">Friday: Closed</p>
                             </div>
                         </div>
 

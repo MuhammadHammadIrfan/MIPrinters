@@ -73,3 +73,21 @@ export function truncate(text: string, length: number): string {
     if (text.length <= length) return text;
     return text.slice(0, length) + '...';
 }
+
+/**
+ * Format phone number for WhatsApp (Pakistan format: 923xxxxxxxxx)
+ * Converts local format (03xx-xxxxxxx) to international format (923xxxxxxxxx)
+ */
+export function formatPhoneForWhatsApp(phone: string): string {
+    // Remove all non-digits
+    let cleaned = phone.replace(/\D/g, '');
+    // If starts with 0, replace with 92 (Pakistan country code)
+    if (cleaned.startsWith('0')) {
+        cleaned = '92' + cleaned.substring(1);
+    }
+    // If doesn't start with 92, add it
+    if (!cleaned.startsWith('92')) {
+        cleaned = '92' + cleaned;
+    }
+    return cleaned;
+}

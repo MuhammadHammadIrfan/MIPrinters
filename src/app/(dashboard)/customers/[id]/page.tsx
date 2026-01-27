@@ -7,6 +7,21 @@ import { Header } from '@/components/layout';
 import { db, type LocalCustomer } from '@/lib/db';
 import { formatPhone } from '@/lib/utils/formatters';
 
+// Helper to format phone for WhatsApp (Pakistan format)
+function formatPhoneForWhatsApp(phone: string): string {
+    // Remove all non-digits
+    let cleaned = phone.replace(/\D/g, '');
+    // If starts with 0, replace with 92 (Pakistan country code)
+    if (cleaned.startsWith('0')) {
+        cleaned = '92' + cleaned.substring(1);
+    }
+    // If doesn't start with 92, add it
+    if (!cleaned.startsWith('92')) {
+        cleaned = '92' + cleaned;
+    }
+    return cleaned;
+}
+
 export default function CustomerDetailPage() {
     const params = useParams();
     const router = useRouter();
@@ -293,7 +308,7 @@ export default function CustomerDetailPage() {
                         </Link>
                         {customer.phone && (
                             <a
-                                href={`https://wa.me/${customer.phone.replace(/\D/g, '')}`}
+                                href={`https://wa.me/${formatPhoneForWhatsApp(customer.phone)}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:border-green-500 hover:bg-green-50 transition-colors"
