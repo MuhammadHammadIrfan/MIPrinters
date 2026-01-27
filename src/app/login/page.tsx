@@ -46,6 +46,8 @@ function LoginForm() {
                 throw new Error('No biometric credential found');
             }
 
+            console.log('🔐 Starting biometric authentication...');
+
             // Convert base64 credential ID to Uint8Array
             const credentialIdBytes = Uint8Array.from(atob(credentialId), c => c.charCodeAt(0));
 
@@ -69,6 +71,8 @@ function LoginForm() {
             });
 
             if (assertion) {
+                console.log('✅ Biometric verified successfully!');
+
                 // Biometric verified successfully - set auth state
                 // For single-owner app, we just need to verify the fingerprint matches
                 const savedSettings = localStorage.getItem('miprinters_settings');
@@ -85,14 +89,28 @@ function LoginForm() {
                     }
                 }
 
+                console.log('🔓 Setting auth state:', { ownerEmail, businessName });
+
+                // Set auth state first
                 setAuth(ownerEmail, businessName);
+
+                // Small delay to ensure state is persisted before navigation
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                console.log('🚀 Redirecting to:', redirectTo);
+
+                // Navigate to dashboard
                 router.push(redirectTo);
                 router.refresh();
+
+                // Don't set loading to false here - let the navigation complete
+                return;
+            } else {
+                throw new Error('No assertion returned from biometric');
             }
         } catch (err) {
-            console.error('Biometric login failed:', err);
+            console.error('❌ Biometric login failed:', err);
             setError('Biometric authentication failed. Please try password login.');
-        } finally {
             setLoading(false);
         }
     };
