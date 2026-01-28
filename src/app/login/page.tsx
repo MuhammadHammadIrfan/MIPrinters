@@ -14,16 +14,42 @@ function LoginForm() {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [biometricAvailable, setBiometricAvailable] = useState(false);
+    const [hasAttemptedBiometric, setHasAttemptedBiometric] = useState(false);
 
     const redirectTo = searchParams.get('redirect') || '/dashboard';
 
-    // Check if biometric login is available
+    // Clean up old localStorage auth data on mount to prevent conflicts
     useEffect(() => {
-        const checkBiometric = () => {
+        try {
+            const oldAuthData = localStorage.getItem('auth-storage');
+            if (oldAuthData) {
+                console.log('🧹 Removing old localStorage auth data');
+                localStorage.removeItem('auth-storage');
+            }
+        } catch (e) {
+            console.error('Failed to clean local storage:', e);
+        }
+    }, []);
+
+    // Check availability and Auto-login
+    useEffect(() => {
+        const checkBiometric = async () => {
             const isSupported = window.PublicKeyCredential !== undefined;
             const isEnabled = localStorage.getItem('biometric_enabled') === 'true';
             const hasCredential = localStorage.getItem('biometric_credential_id') !== null;
-            setBiometricAvailable(isSupported && isEnabled && hasCredential);
+            const available = isSupported && isEnabled && hasCredential;
+
+            setBiometricAvailable(available);
+
+            // Auto-trigger biometric login if available and not already authenticated
+            // We use a timeout to let the UI settle and prevent React hydration issues
+            if (available && !isAuthenticated && !hasAttemptedBiometric) {
+                console.log('🔐 Auto-triggering biometric login sequence...');
+                setHasAttemptedBiometric(true);
+                setTimeout(() => {
+                    handleBiometricLogin();
+                }, 500);
+            }
         };
         checkBiometric();
     }, []);
@@ -31,12 +57,15 @@ function LoginForm() {
     // Redirect if already authenticated
     useEffect(() => {
         if (isAuthenticated) {
-            router.push(redirectTo);
+            // Use replace to avoid back-button loops
+            router.replace(redirectTo);
         }
     }, [isAuthenticated, router, redirectTo]);
 
     // Handle biometric login
     const handleBiometricLogin = async () => {
+        if (isLoading) return; // Prevent double execution
+
         setLoading(true);
         setError(null);
 
@@ -73,8 +102,7 @@ function LoginForm() {
             if (assertion) {
                 console.log('✅ Biometric verified successfully!');
 
-                // Biometric verified successfully - set auth state
-                // For single-owner app, we just need to verify the fingerprint matches
+                // Get saved settings
                 const savedSettings = localStorage.getItem('miprinters_settings');
                 let businessName = 'MI Printers';
                 let ownerEmail = 'owner@miprinters.pk';
@@ -96,16 +124,19 @@ function LoginForm() {
 
                 console.log('🚀 Redirecting to:', redirectTo);
 
-                // Use window.location for reliable redirect (forces full page load)
-                window.location.href = redirectTo;
-                return;
+                // Let the useEffect handle the redirect naturally via state change
+                // But as a fallback, explicit replace after a small tick
+                // window.location.href = redirectTo; // Removed to avoid race with router
             } else {
                 throw new Error('No assertion returned from biometric');
             }
         } catch (err) {
             console.error('❌ Biometric login failed:', err);
-            setError('Biometric authentication failed. Please try password login.');
+            // Only show error if it wasn't an auto-attempt that was cancelled/failed silently
+            // But since navigator.credentials.get throws if cancelled, we might want to catch that
+            setError('Biometric authentication failed. Please use password login.');
             setLoading(false);
+            setHasAttemptedBiometric(true); // Ensure we don't loop
         }
     };
 
