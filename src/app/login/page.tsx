@@ -121,7 +121,7 @@ function LoginForm() {
 
                 // Set auth state
                 setAuth(ownerEmail, businessName);
-
+                setLoading(false);
                 console.log('🚀 Redirecting to:', redirectTo);
 
                 // Let the useEffect handle the redirect naturally via state change
