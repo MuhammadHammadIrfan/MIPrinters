@@ -64,7 +64,7 @@ function LoginForm() {
 
     // Handle biometric login
     const handleBiometricLogin = async () => {
-        if (isLoading) return; // Prevent double execution
+        if (isLoading) return;
 
         setLoading(true);
         setError(null);
@@ -77,14 +77,10 @@ function LoginForm() {
 
             console.log('🔐 Starting biometric authentication...');
 
-            // Convert base64 credential ID to Uint8Array
             const credentialIdBytes = Uint8Array.from(atob(credentialId), c => c.charCodeAt(0));
-
-            // Generate a random challenge
             const challenge = new Uint8Array(32);
             crypto.getRandomValues(challenge);
 
-            // Request biometric authentication
             const assertion = await navigator.credentials.get({
                 publicKey: {
                     challenge,
@@ -99,44 +95,49 @@ function LoginForm() {
                 },
             });
 
-            if (assertion) {
-                console.log('✅ Biometric verified successfully!');
-
-                // Get saved settings
-                const savedSettings = localStorage.getItem('miprinters_settings');
-                let businessName = 'MI Printers';
-                let ownerEmail = 'owner@miprinters.pk';
-
-                if (savedSettings) {
-                    try {
-                        const parsed = JSON.parse(savedSettings);
-                        businessName = parsed.businessName || businessName;
-                        ownerEmail = parsed.email || ownerEmail;
-                    } catch {
-                        // Use defaults
-                    }
-                }
-
-                console.log('🔓 Setting auth state:', { ownerEmail, businessName });
-
-                // Set auth state
-                setAuth(ownerEmail, businessName);
-                setLoading(false);
-                console.log('🚀 Redirecting to:', redirectTo);
-
-                // Let the useEffect handle the redirect naturally via state change
-                // But as a fallback, explicit replace after a small tick
-                // window.location.href = redirectTo; // Removed to avoid race with router
-            } else {
+            if (!assertion) {
                 throw new Error('No assertion returned from biometric');
             }
+
+            console.log('✅ Biometric verified successfully!');
+
+            // Get saved settings
+            const savedSettings = localStorage.getItem('miprinters_settings');
+            let businessName = 'MI Printers';
+            let ownerEmail = 'owner@miprinters.pk';
+
+            if (savedSettings) {
+                try {
+                    const parsed = JSON.parse(savedSettings);
+                    businessName = parsed.businessName || businessName;
+                    ownerEmail = parsed.email || ownerEmail;
+                } catch {
+                    // Use defaults
+                }
+            }
+
+            console.log('🔓 Setting auth state:', { ownerEmail, businessName });
+
+            // Set auth state
+            setAuth(ownerEmail, businessName);
+
+            console.log('🚀 Redirecting to:', redirectTo);
+
+            // ⭐ CRITICAL FIX: Direct redirect instead of relying on useEffect
+            // This ensures we navigate immediately after auth is set
+            router.replace(redirectTo);
+            router.refresh();
+
         } catch (err) {
             console.error('❌ Biometric login failed:', err);
-            // Only show error if it wasn't an auto-attempt that was cancelled/failed silently
-            // But since navigator.credentials.get throws if cancelled, we might want to catch that
-            setError('Biometric authentication failed. Please use password login.');
+
+            // Only show error if it's not a user cancellation
+            if (err instanceof Error && err.name !== 'NotAllowedError') {
+                setError('Biometric authentication failed. Please use password login.');
+            }
+
             setLoading(false);
-            setHasAttemptedBiometric(true); // Ensure we don't loop
+            setHasAttemptedBiometric(true);
         }
     };
 

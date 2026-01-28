@@ -7,22 +7,25 @@ interface AuthState {
     businessName: string | null;
     isLoading: boolean;
     error: string | null;
+    lastActivity: number | null;
 
     // Actions
     setAuth: (email: string, businessName: string) => void;
     clearAuth: () => void;
     setLoading: (loading: boolean) => void;
     setError: (error: string | null) => void;
+    updateActivity: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
     persist(
-        (set) => ({
+        (set, get) => ({
             isAuthenticated: false,
             ownerEmail: null,
             businessName: null,
             isLoading: false,
             error: null,
+            lastActivity: null,
 
             setAuth: (email: string, businessName: string) => {
                 console.log('🔐 [AuthStore] Setting auth:', { email, businessName });
@@ -32,6 +35,7 @@ export const useAuthStore = create<AuthState>()(
                     businessName: businessName,
                     error: null,
                     isLoading: false,
+                    lastActivity: Date.now(),
                 });
             },
 
@@ -42,6 +46,7 @@ export const useAuthStore = create<AuthState>()(
                     ownerEmail: null,
                     businessName: null,
                     error: null,
+                    lastActivity: null,
                 });
             },
 
@@ -51,6 +56,13 @@ export const useAuthStore = create<AuthState>()(
 
             setError: (error: string | null) => {
                 set({ error, isLoading: false });
+            },
+
+            updateActivity: () => {
+                const state = get();
+                if (state.isAuthenticated) {
+                    set({ lastActivity: Date.now() });
+                }
             },
         }),
         {
@@ -62,6 +74,7 @@ export const useAuthStore = create<AuthState>()(
                 isAuthenticated: state.isAuthenticated,
                 ownerEmail: state.ownerEmail,
                 businessName: state.businessName,
+                lastActivity: state.lastActivity,
             }),
         }
     )

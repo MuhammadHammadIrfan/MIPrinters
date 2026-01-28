@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
+import { useAutoLogout } from "@/hooks/useAutoLogout";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -40,6 +41,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  useAutoLogout();
+
   return (
     <html lang="en">
       <head>

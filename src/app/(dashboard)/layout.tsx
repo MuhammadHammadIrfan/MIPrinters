@@ -5,6 +5,7 @@ import { Sidebar, BottomNav } from '@/components/layout';
 import { Calculator, CalculatorButton } from '@/components/calculator/Calculator';
 import { DialogProvider } from '@/components/ui/DialogProvider';
 import { initializeAutoSync } from '@/lib/sync/syncService';
+import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 
 export default function DashboardLayout({
     children,
@@ -15,6 +16,8 @@ export default function DashboardLayout({
     useEffect(() => {
         initializeAutoSync();
     }, []);
+
+    useSessionTimeout();
 
     return (
         <DialogProvider>
