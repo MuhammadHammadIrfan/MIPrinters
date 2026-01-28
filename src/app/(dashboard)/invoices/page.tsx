@@ -111,32 +111,42 @@ export default function InvoicesPage() {
                 {/* Invoice list */}
                 {isInitialized && filteredInvoices.length > 0 && (
                     <div className="space-y-3">
-                        {filteredInvoices.map((invoice) => (
-                            <Link
-                                key={invoice.localId}
-                                href={`/invoices/${invoice.localId}`}
-                                className="card block hover:border-green-500 transition-colors"
-                            >
-                                <div className="flex items-start justify-between mb-2">
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            <span className="font-semibold text-green-600">{invoice.invoiceNumber}</span>
-                                            {invoice.status === 'draft' && (
-                                                <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">Draft</span>
-                                            )}
-                                            {invoice.syncStatus === 'pending' && (
-                                                <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">Pending sync</span>
-                                            )}
+                        {filteredInvoices.map((invoice) => {
+                            // Determine customer display name
+                            const customerDisplay = invoice.walkInCustomerName
+                                ? invoice.walkInCustomerName
+                                : 'Walk-in Customer';
+
+                            return (
+                                <Link
+                                    key={invoice.localId}
+                                    href={`/invoices/${invoice.localId}`}
+                                    className="card block hover:border-green-500 transition-colors"
+                                >
+                                    <div className="flex items-start justify-between mb-2">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="font-semibold text-green-600">{invoice.invoiceNumber}</span>
+                                                {invoice.status === 'draft' && (
+                                                    <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">Draft</span>
+                                                )}
+                                                {invoice.syncStatus === 'pending' && (
+                                                    <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">Pending sync</span>
+                                                )}
+                                            </div>
+                                            <p className="text-sm text-gray-600 mt-0.5 truncate">
+                                                {customerDisplay}
+                                            </p>
                                         </div>
+                                        <StatusBadge status={invoice.paymentStatus} />
                                     </div>
-                                    <StatusBadge status={invoice.paymentStatus} />
-                                </div>
-                                <div className="flex items-center justify-between text-sm">
-                                    <span className="text-gray-500">{formatDate(new Date(invoice.invoiceDate))}</span>
-                                    <span className="font-bold text-gray-900">{formatCurrency(invoice.totalAmount || 0)}</span>
-                                </div>
-                            </Link>
-                        ))}
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="text-gray-500">{formatDate(new Date(invoice.invoiceDate))}</span>
+                                        <span className="font-bold text-gray-900">{formatCurrency(invoice.totalAmount || 0)}</span>
+                                    </div>
+                                </Link>
+                            );
+                        })}
                     </div>
                 )}
             </div>

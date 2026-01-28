@@ -6,11 +6,11 @@ import { Header } from '@/components/layout';
 import { useSupplierStore } from '@/stores/supplierStore';
 
 const SUPPLIER_TYPES: Record<string, { label: string; emoji: string }> = {
-    offset: { label: 'Offset', emoji: '🖨️' },
-    digital: { label: 'Digital', emoji: '💻' },
-    binding: { label: 'Binding', emoji: '📚' },
-    flexo: { label: 'Flexo', emoji: '📦' },
-    screen: { label: 'Screen', emoji: '🎨' },
+    offset: { label: 'Offset Printing', emoji: '🖨️' },
+    digital: { label: 'Digital Printing', emoji: '💻' },
+    binding: { label: 'Binding & Finishing', emoji: '📚' },
+    flexo: { label: 'Flexo Printing', emoji: '📦' },
+    screen: { label: 'Screen Printing', emoji: '🎨' },
     other: { label: 'Other', emoji: '📋' },
 };
 

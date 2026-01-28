@@ -1,8 +1,8 @@
 'use client';
 
 interface HeaderProps {
-    title: string;
-    subtitle?: string;
+    title: React.ReactNode;
+    subtitle?: React.ReactNode;
     actions?: React.ReactNode;
 }
 
@@ -13,7 +13,7 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
                 <div>
                     <h1 className="text-xl font-bold text-gray-900 lg:text-2xl">{title}</h1>
                     {subtitle && (
-                        <p className="mt-0.5 text-sm text-gray-500">{subtitle}</p>
+                        <div className="mt-0.5 text-sm text-gray-500">{subtitle}</div>
                     )}
                 </div>
                 {actions && <div className="flex items-center gap-2">{actions}</div>}

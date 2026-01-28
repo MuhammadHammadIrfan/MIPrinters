@@ -45,11 +45,111 @@ function StatusBadge({ status }: { status: string }) {
     return <span className={classes}>{status.toUpperCase()}</span>;
 }
 
+// Mini Calendar Component
+function MiniCalendar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+    const today = new Date();
+    const [currentMonth, setCurrentMonth] = useState(today.getMonth());
+    const [currentYear, setCurrentYear] = useState(today.getFullYear());
+
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const dayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+    const getDaysInMonth = (month: number, year: number) => new Date(year, month + 1, 0).getDate();
+    const getFirstDayOfMonth = (month: number, year: number) => new Date(year, month, 1).getDay();
+
+    const daysInMonth = getDaysInMonth(currentMonth, currentYear);
+    const firstDay = getFirstDayOfMonth(currentMonth, currentYear);
+    const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
+    const prevMonth = () => {
+        if (currentMonth === 0) {
+            setCurrentMonth(11);
+            setCurrentYear(currentYear - 1);
+        } else {
+            setCurrentMonth(currentMonth - 1);
+        }
+    };
+
+    const nextMonth = () => {
+        if (currentMonth === 11) {
+            setCurrentMonth(0);
+            setCurrentYear(currentYear + 1);
+        } else {
+            setCurrentMonth(currentMonth + 1);
+        }
+    };
+
+    const goToToday = () => {
+        setCurrentMonth(today.getMonth());
+        setCurrentYear(today.getFullYear());
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <>
+            <div className="fixed inset-0 z-40" onClick={onClose} />
+            <div className="absolute top-full left-0 mt-2 z-50 bg-white rounded-xl shadow-2xl border border-gray-200 p-4 w-72 animate-in fade-in slide-in-from-top-2 duration-200">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-3">
+                    <button onClick={prevMonth} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                        ‹
+                    </button>
+                    <button onClick={goToToday} className="font-semibold text-gray-900 hover:text-green-600 transition-colors">
+                        {monthNames[currentMonth]} {currentYear}
+                    </button>
+                    <button onClick={nextMonth} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                        ›
+                    </button>
+                </div>
+
+                {/* Day names */}
+                <div className="grid grid-cols-7 gap-1 mb-2">
+                    {dayNames.map(day => (
+                        <div key={day} className="text-center text-xs font-medium text-gray-400 py-1">
+                            {day}
+                        </div>
+                    ))}
+                </div>
+
+                {/* Days */}
+                <div className="grid grid-cols-7 gap-1">
+                    {Array.from({ length: firstDay }).map((_, i) => (
+                        <div key={`empty-${i}`} />
+                    ))}
+                    {days.map(day => {
+                        const isToday = day === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear();
+                        return (
+                            <div
+                                key={day}
+                                className={`text-center py-1.5 text-sm rounded-lg cursor-default ${isToday
+                                        ? 'bg-green-600 text-white font-bold'
+                                        : 'text-gray-700 hover:bg-gray-50'
+                                    }`}
+                            >
+                                {day}
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* Footer */}
+                <div className="mt-3 pt-3 border-t border-gray-100 text-center">
+                    <button onClick={onClose} className="text-sm text-gray-500 hover:text-green-600 transition-colors">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </>
+    );
+}
+
 export default function DashboardPage() {
     const hasLoadedRef = useRef(false);
     const { invoices, loadInvoices, getDashboardStats, isInitialized } = useInvoiceStore();
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [showCalendar, setShowCalendar] = useState(false);
 
     useEffect(() => {
         const loadData = async () => {
@@ -70,8 +170,25 @@ export default function DashboardPage() {
     return (
         <>
             <Header
-                title="Dashboard"
-                subtitle={formatDate(new Date())}
+                title={
+                    <span className="flex items-center gap-2">
+                        <span className="text-green-600 font-bold">MI</span>
+                        <span>Dashboard</span>
+                    </span>
+                }
+                subtitle={
+                    <div className="relative inline-block">
+                        <button
+                            onClick={() => setShowCalendar(!showCalendar)}
+                            className="flex items-center gap-1.5 text-gray-500 hover:text-green-600 transition-colors group"
+                        >
+                            <span className="text-sm group-hover:text-green-600">📅</span>
+                            <span>{formatDate(new Date())}</span>
+                            <span className="text-xs opacity-60">▼</span>
+                        </button>
+                        <MiniCalendar isOpen={showCalendar} onClose={() => setShowCalendar(false)} />
+                    </div>
+                }
                 actions={
                     <Link href="/invoices/new" className="btn-primary flex items-center gap-2">
                         <span>➕</span>

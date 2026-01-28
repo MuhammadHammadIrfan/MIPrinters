@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout';
 import { useSupplierStore } from '@/stores/supplierStore';
+import { useToast } from '@/components/ui/DialogProvider';
 
 const SUPPLIER_TYPES = [
     { value: 'offset', label: 'Offset Printing', emoji: '🖨️' },
@@ -17,6 +18,7 @@ const SUPPLIER_TYPES = [
 export default function NewSupplierPage() {
     const router = useRouter();
     const addSupplier = useSupplierStore((state) => state.addSupplier);
+    const toast = useToast();
 
     const [formData, setFormData] = useState({
         name: '',
@@ -29,7 +31,7 @@ export default function NewSupplierPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!formData.name.trim()) {
-            alert('Please enter supplier name');
+            toast.error('Please enter supplier name');
             return;
         }
 
@@ -44,7 +46,7 @@ export default function NewSupplierPage() {
             router.push('/suppliers');
         } catch (error) {
             console.error('Failed to add supplier:', error);
-            alert('Failed to add supplier');
+            toast.error('Failed to add supplier');
         } finally {
             setIsSubmitting(false);
         }

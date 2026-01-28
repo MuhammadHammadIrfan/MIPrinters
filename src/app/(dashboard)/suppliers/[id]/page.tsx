@@ -6,6 +6,19 @@ import Link from 'next/link';
 import { Header } from '@/components/layout';
 import { useSupplierStore } from '@/stores/supplierStore';
 import { db, type LocalSupplier } from '@/lib/db';
+import { useConfirmDialog, useToast } from '@/components/ui/DialogProvider';
+
+// Helper to format phone for WhatsApp (Pakistan format)
+function formatPhoneForWhatsApp(phone: string): string {
+    let cleaned = phone.replace(/\D/g, '');
+    if (cleaned.startsWith('0')) {
+        cleaned = '92' + cleaned.substring(1);
+    }
+    if (!cleaned.startsWith('92')) {
+        cleaned = '92' + cleaned;
+    }
+    return cleaned;
+}
 
 const SUPPLIER_TYPES = [
     { value: 'offset', label: 'Offset Printing', emoji: '🖨️' },
@@ -20,6 +33,10 @@ export default function SupplierDetailPage() {
     const params = useParams();
     const router = useRouter();
     const supplierId = params.id as string;
+
+    // Dialog hooks
+    const { confirm: confirmDialog } = useConfirmDialog();
+    const toast = useToast();
 
     const updateSupplier = useSupplierStore((state) => state.updateSupplier);
     const deleteSupplier = useSupplierStore((state) => state.deleteSupplier);
@@ -63,7 +80,7 @@ export default function SupplierDetailPage() {
 
     const handleSave = async () => {
         if (!formData.name.trim()) {
-            alert('Please enter supplier name');
+            toast.error('Please enter supplier name');
             return;
         }
 
@@ -77,23 +94,31 @@ export default function SupplierDetailPage() {
             });
             setSupplier(prev => prev ? { ...prev, ...formData } : null);
             setIsEditing(false);
+            toast.success('Supplier updated successfully');
         } catch (error) {
             console.error('Failed to update supplier:', error);
-            alert('Failed to update supplier');
+            toast.error('Failed to update supplier');
         } finally {
             setIsSubmitting(false);
         }
     };
 
     const handleDelete = async () => {
-        if (!confirm('Are you sure you want to delete this supplier?')) return;
+        const confirmed = await confirmDialog({
+            title: 'Delete Supplier',
+            message: `Are you sure you want to delete "${supplier?.name}"? This action cannot be undone.`,
+            confirmText: 'Delete',
+            variant: 'danger',
+        });
+
+        if (!confirmed) return;
 
         try {
             await deleteSupplier(supplierId);
             router.push('/suppliers');
         } catch (error) {
             console.error('Failed to delete supplier:', error);
-            alert('Failed to delete supplier');
+            toast.error('Failed to delete supplier');
         }
     };
 
@@ -168,10 +193,25 @@ export default function SupplierDetailPage() {
 
                         {supplier.phone && (
                             <div className="py-3 border-t border-gray-100">
-                                <p className="text-sm text-gray-500">Phone</p>
-                                <a href={`tel:${supplier.phone}`} className="text-green-600 font-medium">
-                                    {supplier.phone}
-                                </a>
+                                <p className="text-sm text-gray-500 mb-2">Contact</p>
+                                <div className="flex gap-2">
+                                    <a
+                                        href={`tel:${supplier.phone}`}
+                                        className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 bg-green-50 text-green-700 rounded-lg font-medium hover:bg-green-100 transition-colors"
+                                    >
+                                        <span>📞</span>
+                                        Call
+                                    </a>
+                                    <a
+                                        href={`https://wa.me/${formatPhoneForWhatsApp(supplier.phone)}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 bg-green-50 text-green-700 rounded-lg font-medium hover:bg-green-100 transition-colors"
+                                    >
+                                        <span>💬</span>
+                                        WhatsApp
+                                    </a>
+                                </div>
                             </div>
                         )}
 

@@ -275,6 +275,40 @@ export default function InvoiceDetailPage() {
         }
     };
 
+    // Save draft invoice (convert to final)
+    const handleSaveInvoice = async () => {
+        if (!invoice) return;
+
+        try {
+            await db.invoices.update(invoiceId, {
+                status: 'final',
+                syncStatus: 'pending',
+                updatedAt: Date.now(),
+            });
+
+            // Add to sync queue
+            await db.syncQueue.add({
+                entityType: 'invoice',
+                entityLocalId: invoiceId,
+                operation: 'update',
+                payload: { status: 'final' },
+                retryCount: 0,
+                status: 'pending',
+                createdAt: Date.now(),
+            });
+
+            // Reload invoice
+            await reloadInvoice();
+            toast.success('Invoice saved successfully!');
+
+            // Trigger sync
+            await runSync();
+        } catch (error) {
+            console.error('Failed to save invoice:', error);
+            toast.error('Failed to save invoice');
+        }
+    };
+
     const handleGeneratePDF = async () => {
         if (!invoice) return;
 
@@ -618,7 +652,17 @@ export default function InvoiceDetailPage() {
             {/* Action Bar */}
             <div className="fixed bottom-16 lg:bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 lg:left-64 z-20">
                 <div className="flex gap-3 max-w-4xl mx-auto">
-                    {invoice.paymentStatus !== 'paid' && (
+                    {/* Save Invoice button for drafts */}
+                    {invoice.status === 'draft' && (
+                        <button
+                            onClick={handleSaveInvoice}
+                            className="btn-primary flex-1"
+                        >
+                            ✓ Save Invoice
+                        </button>
+                    )}
+                    {/* Record Payment button for non-draft, unpaid invoices */}
+                    {invoice.status !== 'draft' && invoice.paymentStatus !== 'paid' && (
                         <button
                             onClick={() => setShowPaymentModal(true)}
                             className="btn-primary flex-1"
