@@ -546,19 +546,71 @@ export default function InvoiceDetailPage() {
                 {/* Line Items */}
                 <div className="card mb-4">
                     <h3 className="font-semibold text-gray-900 mb-3">Line Items</h3>
-                    <div className="space-y-3">
+
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block overflow-x-auto -mx-6 px-6">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="border-b border-gray-200">
+                                    <th className="py-2 text-left text-gray-500 font-medium w-10">#</th>
+                                    <th className="py-2 text-left text-gray-500 font-medium">Description</th>
+                                    <th className="py-2 text-right text-gray-500 font-medium w-24">Qty</th>
+                                    <th className="py-2 text-right text-gray-500 font-medium w-28">Rate</th>
+                                    {invoice.customColumns?.map(col => (
+                                        <th key={col.id} className="py-2 text-left text-gray-500 font-medium min-w-[100px]">{col.label}</th>
+                                    ))}
+                                    <th className="py-2 text-right text-gray-500 font-medium w-32">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {items.map((item, index) => (
+                                    <tr key={item.localId} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
+                                        <td className="py-3 text-gray-400">{index + 1}</td>
+                                        <td className="py-3 text-gray-900 font-medium">{item.description}</td>
+                                        <td className="py-3 text-right text-gray-600">{item.quantity}</td>
+                                        <td className="py-3 text-right text-gray-600">{formatCurrency(item.rate)}</td>
+                                        {invoice.customColumns?.map(col => (
+                                            <td key={col.id} className="py-3 text-gray-600">
+                                                {item.customValues?.[col.id] || <span className="text-gray-300">-</span>}
+                                            </td>
+                                        ))}
+                                        <td className="py-3 text-right text-gray-900 font-bold">{formatCurrency(item.amount)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Mobile List View */}
+                    <div className="md:hidden space-y-4">
                         {items.map((item, index) => (
-                            <div key={item.localId} className="flex items-start justify-between py-2 border-b border-gray-100 last:border-0">
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs text-gray-400">{index + 1}.</span>
-                                        <span className="font-medium text-gray-900">{item.description}</span>
+                            <div key={item.localId} className="flex flex-col gap-2 py-3 border-b border-gray-100 last:border-0">
+                                <div className="flex justify-between items-start">
+                                    <div className="flex gap-2">
+                                        <span className="text-xs text-gray-400 mt-1">{index + 1}.</span>
+                                        <div>
+                                            <span className="font-medium text-gray-900 block">{item.description}</span>
+                                            <span className="text-xs text-gray-500">
+                                                {item.quantity} × {formatCurrency(item.rate)}
+                                            </span>
+                                        </div>
                                     </div>
-                                    <p className="text-sm text-gray-500 ml-4">
-                                        {item.quantity} × {formatCurrency(item.rate)}
-                                    </p>
+                                    <span className="font-medium text-gray-900">{formatCurrency(item.amount)}</span>
                                 </div>
-                                <span className="font-medium text-gray-900">{formatCurrency(item.amount)}</span>
+
+                                {/* Dynamic columns for mobile */}
+                                {invoice.customColumns && invoice.customColumns.length > 0 && (
+                                    <div className="ml-6 grid grid-cols-2 gap-x-4 gap-y-1 bg-gray-50 p-2 rounded text-xs">
+                                        {invoice.customColumns.map(col => (
+                                            <div key={col.id} className="flex justify-between border-b border-gray-100 last:border-0 pb-1 last:pb-0">
+                                                <span className="text-gray-500">{col.label}:</span>
+                                                <span className="text-gray-700 font-medium">
+                                                    {item.customValues?.[col.id] || '-'}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>

@@ -6,6 +6,7 @@ import { Header } from '@/components/layout';
 import { useInvoiceFormStore } from '@/stores/invoiceFormStore';
 import { useCustomerStore } from '@/stores/customerStore';
 import { formatCurrency, formatNumber } from '@/lib/utils/formatters';
+import { useConfirmDialog } from '@/components/ui/DialogProvider';
 
 // Mobile-friendly line item component with long-press replication
 function LineItemRow({
@@ -31,23 +32,13 @@ function LineItemRow({
     canRemove: boolean;
     isMobile: boolean;
 }) {
-    const longPressTimer = useRef<NodeJS.Timeout | null>(null);
     const amount = item.quantity * item.rate;
 
-    const handleLongPressStart = (field: string) => {
-        longPressTimer.current = setTimeout(() => {
-            if (field === 'sr') {
-                onReplicateRow(item.localId);
-            } else {
-                onReplicateField(item.localId, field);
-            }
-        }, 500);
-    };
-
-    const handleLongPressEnd = () => {
-        if (longPressTimer.current) {
-            clearTimeout(longPressTimer.current);
-            longPressTimer.current = null;
+    const handleDoubleClick = (field: string) => {
+        if (field === 'sr') {
+            onReplicateRow(item.localId);
+        } else {
+            onReplicateField(item.localId, field);
         }
     };
 
@@ -57,12 +48,8 @@ function LineItemRow({
             <div className="bg-white border border-gray-200 rounded-lg p-3 mb-3">
                 <div className="flex items-start justify-between mb-2">
                     <span
-                        className="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-1 rounded cursor-pointer"
-                        onTouchStart={() => handleLongPressStart('sr')}
-                        onTouchEnd={handleLongPressEnd}
-                        onMouseDown={() => handleLongPressStart('sr')}
-                        onMouseUp={handleLongPressEnd}
-                        onMouseLeave={handleLongPressEnd}
+                        className="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-1 rounded cursor-pointer active:bg-green-100 active:text-green-600 select-none"
+                        onDoubleClick={() => handleDoubleClick('sr')}
                     >
                         #{index + 1}
                     </span>
@@ -80,8 +67,7 @@ function LineItemRow({
                     type="text"
                     value={item.description}
                     onChange={(e) => onUpdate(item.localId, 'description', e.target.value)}
-                    onTouchStart={() => handleLongPressStart('description')}
-                    onTouchEnd={handleLongPressEnd}
+                    onDoubleClick={() => handleDoubleClick('description')}
                     placeholder="Item description"
                     className="w-full px-3 py-2 mb-2 text-sm border border-gray-200 rounded-lg focus:border-green-500 focus:outline-none"
                 />
@@ -93,8 +79,7 @@ function LineItemRow({
                             type="number"
                             value={item.quantity || ''}
                             onChange={(e) => onUpdate(item.localId, 'quantity', parseFloat(e.target.value) || 0)}
-                            onTouchStart={() => handleLongPressStart('quantity')}
-                            onTouchEnd={handleLongPressEnd}
+                            onDoubleClick={() => handleDoubleClick('quantity')}
                             placeholder="0"
                             className="w-full px-2 py-1.5 text-sm text-center border border-gray-200 rounded-lg focus:border-green-500 focus:outline-none"
                         />
@@ -105,8 +90,7 @@ function LineItemRow({
                             type="number"
                             value={item.rate || ''}
                             onChange={(e) => onUpdate(item.localId, 'rate', parseFloat(e.target.value) || 0)}
-                            onTouchStart={() => handleLongPressStart('rate')}
-                            onTouchEnd={handleLongPressEnd}
+                            onDoubleClick={() => handleDoubleClick('rate')}
                             placeholder="0"
                             className="w-full px-2 py-1.5 text-sm text-right border border-gray-200 rounded-lg focus:border-green-500 focus:outline-none"
                         />
@@ -118,8 +102,7 @@ function LineItemRow({
                                 type="text"
                                 value={item.customValues?.[col.id] || ''}
                                 onChange={(e) => onUpdateCustomValue(item.localId, col.id, e.target.value)}
-                                onTouchStart={() => handleLongPressStart(`custom_${col.id}`)}
-                                onTouchEnd={handleLongPressEnd}
+                                onDoubleClick={() => handleDoubleClick(`custom_${col.id}`)}
                                 className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:border-green-500 focus:outline-none"
                             />
                         </div>
@@ -139,11 +122,9 @@ function LineItemRow({
     return (
         <tr className="border-b border-gray-100 group">
             <td
-                className="px-2 py-2 text-center text-gray-400 text-sm w-8 cursor-pointer hover:bg-gray-100"
-                onMouseDown={() => handleLongPressStart('sr')}
-                onMouseUp={handleLongPressEnd}
-                onMouseLeave={handleLongPressEnd}
-                title="Long-press to replicate entire row"
+                className="px-2 py-2 text-center text-gray-400 text-sm w-8 cursor-pointer hover:bg-gray-100 select-none"
+                onDoubleClick={() => handleDoubleClick('sr')}
+                title="Double-click to replicate entire row"
             >
                 {index + 1}
             </td>
@@ -152,9 +133,7 @@ function LineItemRow({
                     type="text"
                     value={item.description}
                     onChange={(e) => onUpdate(item.localId, 'description', e.target.value)}
-                    onMouseDown={() => handleLongPressStart('description')}
-                    onMouseUp={handleLongPressEnd}
-                    onMouseLeave={handleLongPressEnd}
+                    onDoubleClick={() => handleDoubleClick('description')}
                     placeholder="Item description"
                     className="w-full px-2 py-1.5 text-sm border border-transparent rounded hover:border-gray-200 focus:border-green-500 focus:outline-none"
                 />
@@ -164,9 +143,7 @@ function LineItemRow({
                     type="number"
                     value={item.quantity || ''}
                     onChange={(e) => onUpdate(item.localId, 'quantity', parseFloat(e.target.value) || 0)}
-                    onMouseDown={() => handleLongPressStart('quantity')}
-                    onMouseUp={handleLongPressEnd}
-                    onMouseLeave={handleLongPressEnd}
+                    onDoubleClick={() => handleDoubleClick('quantity')}
                     placeholder="0"
                     className="w-full px-2 py-1.5 text-sm text-right border border-transparent rounded hover:border-gray-200 focus:border-green-500 focus:outline-none"
                 />
@@ -176,9 +153,7 @@ function LineItemRow({
                     type="number"
                     value={item.rate || ''}
                     onChange={(e) => onUpdate(item.localId, 'rate', parseFloat(e.target.value) || 0)}
-                    onMouseDown={() => handleLongPressStart('rate')}
-                    onMouseUp={handleLongPressEnd}
-                    onMouseLeave={handleLongPressEnd}
+                    onDoubleClick={() => handleDoubleClick('rate')}
                     placeholder="0.00"
                     step="0.01"
                     className="w-full px-2 py-1.5 text-sm text-right border border-transparent rounded hover:border-gray-200 focus:border-green-500 focus:outline-none"
@@ -342,6 +317,8 @@ function NewInvoicePageContent() {
         resetForm,
     } = useInvoiceFormStore();
 
+    const { confirm } = useConfirmDialog();
+
     const handleReplicateField = (localId: string, field: string) => {
         setReplicationTarget({ localId, field, type: 'field' });
         setShowReplicationModal(true);
@@ -366,6 +343,19 @@ function NewInvoicePageContent() {
     };
 
 
+
+    const handleRemoveColumn = async (columnId: string, columnLabel: string) => {
+        const confirmed = await confirm({
+            title: 'Remove Column',
+            message: `Are you sure you want to remove the "${columnLabel}" column? This will delete all data in this column.`,
+            confirmText: 'Remove',
+            variant: 'danger',
+        });
+
+        if (confirmed) {
+            removeCustomColumn(columnId);
+        }
+    };
 
     const handleAddColumn = () => {
         if (!newColumnName.trim()) return;
@@ -457,6 +447,27 @@ function NewInvoicePageContent() {
                     {/* Mobile: Card layout */}
                     {isMobile ? (
                         <div>
+                            {/* Mobile Column Management */}
+                            <div className="flex flex-wrap gap-2 mb-3 items-center">
+                                {customColumns.map(col => (
+                                    <div key={col.id} className="flex items-center gap-1 bg-green-50 text-green-700 px-2 py-1 rounded-full text-xs font-medium border border-green-100">
+                                        <span>{col.label}</span>
+                                        <button
+                                            onClick={() => handleRemoveColumn(col.id, col.label)}
+                                            className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-red-100 text-red-500 font-bold ml-1"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                ))}
+                                <button
+                                    onClick={() => setShowColumnModal(true)}
+                                    className="flex items-center gap-1 bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-medium active:bg-gray-200"
+                                >
+                                    <span>+ Add Column</span>
+                                </button>
+                            </div>
+
                             {items.map((item, index) => (
                                 <LineItemRow
                                     key={item.localId}
@@ -486,22 +497,22 @@ function NewInvoicePageContent() {
                                         {/* Dynamic Headers */}
                                         {customColumns?.map(col => (
                                             <th key={col.id} className="px-2 py-2 text-left text-xs font-semibold text-gray-500 min-w-[100px] group/col relative">
-                                                {col.label}
-                                                <button
-                                                    onClick={() => {
-                                                        if (confirm(`Remove column "${col.label}"?`)) removeCustomColumn(col.id);
-                                                    }}
-                                                    className="absolute top-1 right-1 text-red-400 opacity-0 group-hover/col:opacity-100 hover:text-red-600 font-bold"
-                                                    title="Remove Column"
-                                                >
-                                                    -
-                                                </button>
+                                                <div className="flex items-center justify-between gap-1">
+                                                    <span>{col.label}</span>
+                                                    <button
+                                                        onClick={() => handleRemoveColumn(col.id, col.label)}
+                                                        className="w-5 h-5 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded font-bold transition-colors"
+                                                        title="Remove Column"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </div>
                                             </th>
                                         ))}
                                         <th className="px-2 py-2 text-left w-6">
                                             <button
                                                 onClick={() => setShowColumnModal(true)}
-                                                className="text-green-600 hover:text-green-700 font-bold text-lg"
+                                                className="w-6 h-6 flex items-center justify-center text-white bg-green-500 hover:bg-green-600 rounded-full font-bold shadow-sm transition-colors"
                                                 title="Add Column"
                                             >
                                                 +
@@ -533,7 +544,7 @@ function NewInvoicePageContent() {
                     )}
 
                     <p className="mt-3 text-xs text-gray-400 italic">
-                        💡 Long-press #{' '} to replicate entire row, or any cell for that value
+                        💡 Double-tap #{' '} to replicate entire row, or any specific Field/Cell to replicate that value on rows below.
                     </p>
                 </div>
 
