@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 interface AuthState {
     isAuthenticated: boolean;
@@ -25,15 +25,18 @@ export const useAuthStore = create<AuthState>()(
             error: null,
 
             setAuth: (email: string, businessName: string) => {
+                console.log('🔐 [AuthStore] Setting auth:', { email, businessName });
                 set({
                     isAuthenticated: true,
                     ownerEmail: email,
                     businessName: businessName,
                     error: null,
+                    isLoading: false,
                 });
             },
 
             clearAuth: () => {
+                console.log('🔓 [AuthStore] Clearing auth');
                 set({
                     isAuthenticated: false,
                     ownerEmail: null,
@@ -51,7 +54,10 @@ export const useAuthStore = create<AuthState>()(
             },
         }),
         {
-            name: 'auth-storage',
+            name: 'auth-session',
+            // Use sessionStorage instead of localStorage
+            // This means auth will be cleared when browser/tab is closed
+            storage: createJSONStorage(() => sessionStorage),
             partialize: (state) => ({
                 isAuthenticated: state.isAuthenticated,
                 ownerEmail: state.ownerEmail,

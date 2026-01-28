@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Header } from '@/components/layout';
 import { db, type LocalCustomer } from '@/lib/db';
 import { formatPhone } from '@/lib/utils/formatters';
+import { useConfirmDialog, useToast } from '@/components/ui/DialogProvider';
 
 // Helper to format phone for WhatsApp (Pakistan format)
 function formatPhoneForWhatsApp(phone: string): string {
@@ -26,6 +27,10 @@ export default function CustomerDetailPage() {
     const params = useParams();
     const router = useRouter();
     const customerId = params.id as string;
+
+    // Dialog hooks
+    const { confirm: confirmDialog } = useConfirmDialog();
+    const toast = useToast();
 
     const [customer, setCustomer] = useState<LocalCustomer | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -79,12 +84,19 @@ export default function CustomerDetailPage() {
             setIsEditing(false);
         } catch (error) {
             console.error('Failed to save customer:', error);
-            alert('Failed to save customer');
+            toast.error('Failed to save customer');
         }
     };
 
     const handleDelete = async () => {
-        if (!confirm('Are you sure you want to delete this customer?')) return;
+        const confirmed = await confirmDialog({
+            title: 'Delete Customer',
+            message: `Are you sure you want to delete "${customer?.name}"? This action cannot be undone.`,
+            confirmText: 'Delete',
+            variant: 'danger',
+        });
+
+        if (!confirmed) return;
 
         try {
             const now = Date.now();
@@ -103,7 +115,7 @@ export default function CustomerDetailPage() {
             router.push('/customers');
         } catch (error) {
             console.error('Failed to delete customer:', error);
-            alert('Failed to delete customer');
+            toast.error('Failed to delete customer');
         }
     };
 

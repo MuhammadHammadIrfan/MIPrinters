@@ -91,19 +91,13 @@ function LoginForm() {
 
                 console.log('🔓 Setting auth state:', { ownerEmail, businessName });
 
-                // Set auth state first
+                // Set auth state
                 setAuth(ownerEmail, businessName);
-
-                // Small delay to ensure state is persisted before navigation
-                await new Promise(resolve => setTimeout(resolve, 100));
 
                 console.log('🚀 Redirecting to:', redirectTo);
 
-                // Navigate to dashboard
-                router.push(redirectTo);
-                router.refresh();
-
-                // Don't set loading to false here - let the navigation complete
+                // Use window.location for reliable redirect (forces full page load)
+                window.location.href = redirectTo;
                 return;
             } else {
                 throw new Error('No assertion returned from biometric');

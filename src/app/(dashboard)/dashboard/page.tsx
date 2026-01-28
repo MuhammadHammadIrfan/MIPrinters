@@ -16,7 +16,7 @@ interface DashboardStats {
     totalCustomers: number;
 }
 
-function StatCard({ title, value, subtitle, icon, color }: { title: string; value: string; subtitle?: string; icon: string; color: string }) {
+function StatCard({ title, value, subtitle, icon, color }: { title: string; value: string; subtitle?: string; icon?: string; color: string }) {
     return (
         <div className="card">
             <div className="flex items-start justify-between">
@@ -25,9 +25,11 @@ function StatCard({ title, value, subtitle, icon, color }: { title: string; valu
                     <p className="mt-1 text-2xl font-bold text-gray-900">{value}</p>
                     {subtitle && <p className="mt-0.5 text-xs text-gray-400">{subtitle}</p>}
                 </div>
-                <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${color}`}>
-                    <span className="text-xl">{icon}</span>
-                </div>
+                {icon && (
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${color}`}>
+                        <span className="text-xl">{icon}</span>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -85,26 +87,22 @@ export default function DashboardPage() {
                         title="Today's Sales"
                         value={stats ? formatCurrency(stats.todaySales) : '—'}
                         subtitle={stats ? `${stats.todayInvoices} invoice${stats.todayInvoices !== 1 ? 's' : ''}` : undefined}
-                        icon="💰"
                         color="bg-green-100"
                     />
                     <StatCard
                         title="Pending"
                         value={stats ? formatCurrency(stats.pendingAmount) : '—'}
                         subtitle={stats ? `${stats.pendingInvoices} invoice${stats.pendingInvoices !== 1 ? 's' : ''}` : undefined}
-                        icon="⏳"
                         color="bg-amber-100"
                     />
                     <StatCard
                         title="Month Profit"
                         value={stats ? formatCurrency(stats.monthProfit) : '—'}
-                        icon="📈"
                         color="bg-blue-100"
                     />
                     <StatCard
                         title="Customers"
                         value={stats ? String(stats.totalCustomers) : '—'}
-                        icon="👥"
                         color="bg-purple-100"
                     />
                 </div>

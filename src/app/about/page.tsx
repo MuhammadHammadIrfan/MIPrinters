@@ -33,7 +33,7 @@ export default function AboutPage() {
 
                     <div className="prose prose-lg text-gray-600">
                         <p className="text-xl mb-6">
-                            MI Printers is a leading printing service provider based in Lahore, Pakistan.
+                            MI Printers is a leading printing service provider based in Faisalabad, Pakistan.
                             We specialize in delivering high-quality printing solutions for businesses of all sizes.
                         </p>
 

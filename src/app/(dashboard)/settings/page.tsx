@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Header } from '@/components/layout';
 import { createClient } from '@/lib/supabase/client';
+import { useToast, useConfirmDialog } from '@/components/ui/DialogProvider';
 
 interface BusinessSettings {
     businessName: string;
@@ -35,6 +36,10 @@ const DEFAULT_SETTINGS: BusinessSettings = {
 };
 
 export default function SettingsPage() {
+    // Dialog hooks
+    const toast = useToast();
+    const { confirm } = useConfirmDialog();
+
     // Business settings state
     const [settings, setSettings] = useState<BusinessSettings>(DEFAULT_SETTINGS);
     const [isSaving, setIsSaving] = useState(false);
@@ -54,6 +59,11 @@ export default function SettingsPage() {
     const [biometricEnabled, setBiometricEnabled] = useState(false);
     const [biometricSupported, setBiometricSupported] = useState(false);
     const [biometricRegistered, setBiometricRegistered] = useState(false);
+
+    // Password visibility states
+    const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     // Check biometric support and registration on mount
     useEffect(() => {
@@ -496,11 +506,11 @@ export default function SettingsPage() {
                                                     localStorage.setItem('biometric_enabled', 'true');
                                                     setBiometricRegistered(true);
                                                     setBiometricEnabled(true);
-                                                    alert('Fingerprint registered successfully! You can now use biometric login.');
+                                                    toast.success('Fingerprint registered! You can now use biometric login.');
                                                 }
                                             } catch (error) {
                                                 console.error('Biometric registration failed:', error);
-                                                alert('Failed to register fingerprint. Please try again.');
+                                                toast.error('Failed to register fingerprint. Please try again.');
                                             }
                                         }}
                                         className="btn-primary flex items-center gap-2"
@@ -514,13 +524,22 @@ export default function SettingsPage() {
                             {biometricRegistered && (
                                 <button
                                     type="button"
-                                    onClick={() => {
-                                        localStorage.removeItem('biometric_credential_id');
-                                        localStorage.removeItem('biometric_enabled');
-                                        setBiometricRegistered(false);
-                                        setBiometricEnabled(false);
+                                    onClick={async () => {
+                                        const confirmed = await confirm({
+                                            title: 'Remove Fingerprint',
+                                            message: 'Are you sure you want to remove your registered fingerprint? You will need to register again to use biometric login.',
+                                            confirmText: 'Remove',
+                                            variant: 'danger',
+                                        });
+                                        if (confirmed) {
+                                            localStorage.removeItem('biometric_credential_id');
+                                            localStorage.removeItem('biometric_enabled');
+                                            setBiometricRegistered(false);
+                                            setBiometricEnabled(false);
+                                            toast.success('Fingerprint removed successfully.');
+                                        }
                                     }}
-                                    className="text-sm text-red-600 hover:text-red-700"
+                                    className="w-full py-2.5 px-4 bg-red-50 text-red-600 border border-red-200 rounded-lg font-medium hover:bg-red-100 transition-colors"
                                 >
                                     Remove Registered Fingerprint
                                 </button>
@@ -545,42 +564,72 @@ export default function SettingsPage() {
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Current Password
                             </label>
-                            <input
-                                type="password"
-                                value={passwordForm.currentPassword}
-                                onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                                className="input"
-                                required
-                                autoComplete="current-password"
-                            />
+                            <div className="relative">
+                                <input
+                                    type={showCurrentPassword ? 'text' : 'password'}
+                                    value={passwordForm.currentPassword}
+                                    onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                                    className="input pr-10"
+                                    required
+                                    autoComplete="current-password"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                    tabIndex={-1}
+                                >
+                                    {showCurrentPassword ? '👁️' : '👁️‍🗨️'}
+                                </button>
+                            </div>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 New Password
                             </label>
-                            <input
-                                type="password"
-                                value={passwordForm.newPassword}
-                                onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                                className="input"
-                                required
-                                minLength={6}
-                                autoComplete="new-password"
-                            />
+                            <div className="relative">
+                                <input
+                                    type={showNewPassword ? 'text' : 'password'}
+                                    value={passwordForm.newPassword}
+                                    onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                                    className="input pr-10"
+                                    required
+                                    minLength={6}
+                                    autoComplete="new-password"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowNewPassword(!showNewPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                    tabIndex={-1}
+                                >
+                                    {showNewPassword ? '👁️' : '👁️‍🗨️'}
+                                </button>
+                            </div>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Confirm New Password
                             </label>
-                            <input
-                                type="password"
-                                value={passwordForm.confirmPassword}
-                                onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                                className="input"
-                                required
-                                minLength={6}
-                                autoComplete="new-password"
-                            />
+                            <div className="relative">
+                                <input
+                                    type={showConfirmPassword ? 'text' : 'password'}
+                                    value={passwordForm.confirmPassword}
+                                    onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                                    className="input pr-10"
+                                    required
+                                    minLength={6}
+                                    autoComplete="new-password"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                    tabIndex={-1}
+                                >
+                                    {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
+                                </button>
+                            </div>
                         </div>
 
                         {passwordError && (

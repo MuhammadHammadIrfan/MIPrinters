@@ -646,7 +646,7 @@ function NewInvoicePageContent() {
                                 <div className="flex flex-wrap gap-2">
                                     {items.filter(i => i.description.trim()).map((item, index) => (
                                         <div key={item.localId} className="flex items-center gap-1">
-                                            <span className="text-xs text-gray-400">{index + 1}:</span>
+                                            <span className="text-xs text-gray-400">#{index + 1}:</span>
                                             <input
                                                 type="number"
                                                 value={item.cost || ''}

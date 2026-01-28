@@ -8,6 +8,7 @@ import { db, type LocalInvoice, type LocalInvoiceItem } from '@/lib/db';
 import { useCustomerStore } from '@/stores/customerStore';
 import { formatCurrency, formatDate } from '@/lib/utils/formatters';
 import { runSync } from '@/lib/sync/syncService';
+import { useConfirmDialog, useToast } from '@/components/ui/DialogProvider';
 
 function StatusBadge({ status }: { status: string }) {
     const classes = {
@@ -92,7 +93,7 @@ function PaymentModal({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
             <div className="w-full max-w-sm bg-white rounded-xl shadow-xl">
                 <div className="flex items-center justify-between p-4 border-b">
-                    <h3 className="font-semibold text-gray-900">💰 Record Payment</h3>
+                    <h3 className="font-semibold text-gray-900">✓ Record Payment</h3>
                     <button onClick={onClose} className="text-gray-500 hover:text-gray-700">✕</button>
                 </div>
 
@@ -184,6 +185,10 @@ export default function InvoiceDetailPage() {
     const invoiceId = params.id as string;
     const hasLoadedRef = useRef(false);
 
+    // Dialog hooks
+    const { confirm: confirmDialog } = useConfirmDialog();
+    const toast = useToast();
+
     const [invoice, setInvoice] = useState<LocalInvoice | null>(null);
     const [items, setItems] = useState<LocalInvoiceItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -251,7 +256,14 @@ export default function InvoiceDetailPage() {
     };
 
     const handleDelete = async () => {
-        if (!confirm('Are you sure you want to delete this invoice?')) return;
+        const confirmed = await confirmDialog({
+            title: 'Delete Invoice',
+            message: `Are you sure you want to delete invoice #${invoice?.invoiceNumber}? This action cannot be undone.`,
+            confirmText: 'Delete',
+            variant: 'danger',
+        });
+
+        if (!confirmed) return;
 
         try {
             await db.invoices.delete(invoiceId);
@@ -259,7 +271,7 @@ export default function InvoiceDetailPage() {
             router.push('/invoices');
         } catch (error) {
             console.error('Failed to delete invoice:', error);
-            alert('Failed to delete invoice');
+            toast.error('Failed to delete invoice');
         }
     };
 
@@ -611,7 +623,7 @@ export default function InvoiceDetailPage() {
                             onClick={() => setShowPaymentModal(true)}
                             className="btn-primary flex-1"
                         >
-                            💰 Record Payment
+                            ✓ Record Payment
                         </button>
                     )}
                     <Link href="/invoices/new" className="btn-secondary flex-1 text-center">
