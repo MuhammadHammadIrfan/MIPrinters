@@ -2,8 +2,12 @@ import { create } from 'zustand';
 import { db, type LocalInvoice, type LocalInvoiceItem } from '@/lib/db';
 import { pullFromCloud } from '@/lib/sync/syncService';
 
+export interface InvoiceWithCustomer extends LocalInvoice {
+    customerName?: string;
+}
+
 interface InvoiceState {
-    invoices: LocalInvoice[];
+    invoices: InvoiceWithCustomer[];
     isLoading: boolean;
     isInitialized: boolean;
     error: string | null;
@@ -14,7 +18,7 @@ interface InvoiceState {
     getInvoice: (localId: string) => Promise<{ invoice: LocalInvoice; items: LocalInvoiceItem[] } | null>;
     deleteInvoice: (localId: string) => Promise<void>;
     setFilterStatus: (status: 'all' | 'unpaid' | 'partial' | 'paid' | 'draft') => void;
-    getFilteredInvoices: () => LocalInvoice[];
+    getFilteredInvoices: () => InvoiceWithCustomer[];
 
     // Dashboard stats
     getDashboardStats: () => Promise<{
@@ -47,8 +51,28 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                 console.warn('Cloud pull failed, using local data:', err);
             });
 
+
+
+            // Fetch invoices
             const invoices = await db.invoices.orderBy('createdAt').reverse().toArray();
-            set({ invoices, isLoading: false, isInitialized: true });
+
+            // Fetch customers to map names
+            const customers = await db.customers.toArray();
+            const customerMap = new Map(customers.map(c => [c.localId, c]));
+
+            // Map customer names to invoices
+            const invoicesWithCustomers: InvoiceWithCustomer[] = invoices.map(invoice => {
+                let customerName = undefined;
+                if (invoice.customerId) {
+                    const customer = customerMap.get(invoice.customerId);
+                    if (customer) {
+                        customerName = customer.company || customer.name;
+                    }
+                }
+                return { ...invoice, customerName };
+            });
+
+            set({ invoices: invoicesWithCustomers, isLoading: false, isInitialized: true });
         } catch (error) {
             console.error('Failed to load invoices:', error);
             set({ error: 'Failed to load invoices', isLoading: false, isInitialized: true });

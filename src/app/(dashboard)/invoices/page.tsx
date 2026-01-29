@@ -113,9 +113,9 @@ export default function InvoicesPage() {
                     <div className="space-y-3">
                         {filteredInvoices.map((invoice) => {
                             // Determine customer display name
-                            const customerDisplay = invoice.walkInCustomerName
-                                ? invoice.walkInCustomerName
-                                : 'Walk-in Customer';
+                            const customerDisplay = invoice.customerName
+                                || invoice.walkInCustomerName
+                                || 'Walk-in Customer';
 
                             return (
                                 <Link

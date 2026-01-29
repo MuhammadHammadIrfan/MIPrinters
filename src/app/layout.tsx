@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
-import { SessionHandler } from "@/components/auth/SessionHandler";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -53,7 +52,6 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}
       >
         <ServiceWorkerRegistration />
-        <SessionHandler />
         {children}
       </body>
     </html>
