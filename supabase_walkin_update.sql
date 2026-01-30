@@ -30,7 +30,8 @@ CREATE OR REPLACE FUNCTION sync_invoice(
     p_notes TEXT DEFAULT NULL,
     p_internal_notes TEXT DEFAULT NULL,
     p_status TEXT DEFAULT 'final',
-    p_walk_in_customer_name TEXT DEFAULT NULL -- Added parameter
+    p_walk_in_customer_name TEXT DEFAULT NULL, -- Added parameter
+    p_custom_columns JSONB DEFAULT '[]'::jsonb -- Re-added missing parameter
 )
 RETURNS UUID AS $$
 DECLARE
@@ -64,6 +65,7 @@ BEGIN
             internal_notes = p_internal_notes,
             status = p_status,
             walk_in_customer_name = p_walk_in_customer_name, -- Update field
+            custom_columns = p_custom_columns,
             sync_status = 'synced',
             updated_at = NOW()
         WHERE id = v_id;
@@ -74,14 +76,14 @@ BEGIN
             subtotal, tax_amount, total_amount, design_charges, delivery_charges,
             tax_rate, other_charges, other_charges_label, total_cost, margin, margin_percentage,
             payment_status, amount_paid, balance_due, notes, internal_notes, status, local_id, sync_status,
-            walk_in_customer_name -- Insert field
+            walk_in_customer_name, custom_columns
         )
         VALUES (
             p_invoice_number, p_customer_id, p_invoice_date, p_due_date,
             p_subtotal, p_tax_amount, p_total_amount, p_design_charges, p_delivery_charges,
             p_tax_rate, p_other_charges, p_other_charges_label, p_total_cost, p_margin, p_margin_percentage,
             p_payment_status, p_amount_paid, p_balance_due, p_notes, p_internal_notes, p_status, p_local_id, 'synced',
-            p_walk_in_customer_name -- Insert value
+            p_walk_in_customer_name, p_custom_columns
         )
         RETURNING id INTO v_id;
     END IF;
@@ -92,4 +94,4 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Grant permissions (update these if your role names are different)
 GRANT EXECUTE ON FUNCTION sync_invoice(TEXT, TEXT, UUID, DATE, DATE, DECIMAL, DECIMAL, DECIMAL, DECIMAL, DECIMAL, DECIMAL, DECIMAL, TEXT, DECIMAL, DECIMAL, DECIMAL, TEXT, DECIMAL, DECIMAL, TEXT, TEXT, TEXT, TEXT) TO anon;
-GRANT EXECUTE ON FUNCTION sync_invoice(TEXT, TEXT, UUID, DATE, DATE, DECIMAL, DECIMAL, DECIMAL, DECIMAL, DECIMAL, DECIMAL, DECIMAL, TEXT, DECIMAL, DECIMAL, DECIMAL, TEXT, DECIMAL, DECIMAL, TEXT, TEXT, TEXT, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION sync_invoice(TEXT, TEXT, UUID, DATE, DATE, DECIMAL, DECIMAL, DECIMAL, DECIMAL, DECIMAL, DECIMAL, DECIMAL, TEXT, DECIMAL, DECIMAL, DECIMAL, TEXT, DECIMAL, DECIMAL, TEXT, TEXT, TEXT, TEXT, JSONB) TO authenticated;
