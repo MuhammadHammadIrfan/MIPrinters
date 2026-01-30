@@ -58,7 +58,13 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
 
             // Fetch customers to map names
             const customers = await db.customers.toArray();
-            const customerMap = new Map(customers.map(c => [c.localId, c]));
+
+            // Map by BOTH localId and id (UUID) to handle all cases
+            const customerMap = new Map<string, typeof customers[0]>();
+            customers.forEach(c => {
+                if (c.localId) customerMap.set(c.localId, c);
+                if (c.id) customerMap.set(c.id, c);
+            });
 
             // Map customer names to invoices
             const invoicesWithCustomers: InvoiceWithCustomer[] = invoices.map(invoice => {
