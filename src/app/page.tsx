@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
@@ -152,12 +152,12 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
-              { icon: '📄', title: 'Offset Printing', desc: 'High-volume printing with exceptional quality and cost-effectiveness.' },
-              { icon: '🖼️', title: 'Digital Printing', desc: 'Fast turnaround for small to medium print runs with vibrant colors.' },
-              { icon: '📦', title: 'Packaging', desc: 'Custom boxes, bags, and packaging solutions for your products.' },
-              { icon: '🎨', title: 'Design Services', desc: 'Professional graphic design for all your printing needs.' },
-              { icon: '📚', title: 'Book Binding', desc: 'Quality binding for books, catalogs, and brochures.' },
-              { icon: '🏷️', title: 'Stickers & Labels', desc: 'Custom stickers and labels in various sizes and finishes.' },
+              { icon: '📄', title: 'Offset Printing', desc: 'High-volume, premium quality printing for magazines, brochures, and catalogs with cost-effective bulk pricing.' },
+              { icon: '🖼️', title: 'Digital Printing', desc: 'On-demand, fast-turnaround printing for business cards, flyers, and short-run projects with crisp vibrant colors.' },
+              { icon: '📦', title: 'Packaging Solutions', desc: 'Custom-branded boxes, bags, and rigid packaging designed to elevate your product presentation.' },
+              { icon: '🎨', title: 'Creative Design', desc: 'Expert prepress and graphic design services to bring your brand vision to life with professional polish.' },
+              { icon: '✉️', title: 'Cards & Stationery', desc: 'Exquisite wedding cards, visiting cards, letterheads, and envelopes tailored to your personal or corporate identity.' },
+              { icon: '🏷️', title: 'Labels & Stickers', desc: 'Premium adhesive labels, product stickers, and custom die-cut decals for all applications.' },
             ].map((service, index) => (
               <div key={index} className="card hover:border-green-500 transition-colors">
                 <span className="text-4xl mb-4 block">{service.icon}</span>
