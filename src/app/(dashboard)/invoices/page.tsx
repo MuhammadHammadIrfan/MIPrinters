@@ -113,9 +113,9 @@ export default function InvoicesPage() {
                     <div className="space-y-3">
                         {filteredInvoices.map((invoice) => {
                             // Determine customer display name
+                            const isWalkIn = !invoice.customerName;
                             const customerDisplay = invoice.customerName
-                                || invoice.walkInCustomerName
-                                || 'Walk-in Customer';
+                                || (invoice.walkInCustomerName ? `${invoice.walkInCustomerName} (Walk-in)` : 'Walk-in Customer');
 
                             return (
                                 <Link
@@ -134,7 +134,7 @@ export default function InvoicesPage() {
                                                     <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">Pending sync</span>
                                                 )}
                                             </div>
-                                            <p className="text-sm text-gray-600 mt-0.5 truncate">
+                                            <p className={`text-sm mt-0.5 truncate ${isWalkIn ? 'text-gray-500 italic' : 'text-gray-700 font-medium'}`}>
                                                 {customerDisplay}
                                             </p>
                                         </div>

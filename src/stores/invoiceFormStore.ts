@@ -10,6 +10,7 @@ interface InvoiceFormItem extends InvoiceItemInput {
 interface InvoiceFormState {
     // Form data
     customerId: string | null;
+    walkInCustomerName: string;
     invoiceDate: string;
     dueDate: string;
     items: InvoiceFormItem[];
@@ -41,6 +42,7 @@ interface InvoiceFormState {
 
     // Actions
     setCustomerId: (id: string | null) => void;
+    setWalkInCustomerName: (name: string) => void;
     setInvoiceDate: (date: string) => void;
     setDueDate: (date: string) => void;
 
@@ -63,6 +65,7 @@ interface InvoiceFormState {
 
     recalculateTotals: () => void;
     resetForm: () => void;
+    initializeFromSettings: () => void;
     loadInvoice: (invoiceLocalId: string) => Promise<void>;
     saveInvoice: (asDraft?: boolean) => Promise<string>;
 }
@@ -86,6 +89,7 @@ const getDefaultDueDate = (): string => {
 export const useInvoiceFormStore = create<InvoiceFormState>((set, get) => ({
     // Initial form data
     customerId: null,
+    walkInCustomerName: '',
     invoiceDate: new Date().toISOString().split('T')[0],
     dueDate: getDefaultDueDate(),
     items: [createEmptyItem()],
@@ -112,6 +116,7 @@ export const useInvoiceFormStore = create<InvoiceFormState>((set, get) => ({
     editingInvoiceId: null,
 
     setCustomerId: (id) => set({ customerId: id }),
+    setWalkInCustomerName: (name) => set({ walkInCustomerName: name }),
     setInvoiceDate: (date) => set({ invoiceDate: date }),
     setDueDate: (date) => set({ dueDate: date }),
 
@@ -238,6 +243,7 @@ export const useInvoiceFormStore = create<InvoiceFormState>((set, get) => ({
     resetForm: () => {
         set({
             customerId: null,
+            walkInCustomerName: '',
             invoiceDate: new Date().toISOString().split('T')[0],
             dueDate: getDefaultDueDate(),
             items: [createEmptyItem()],
@@ -271,6 +277,7 @@ export const useInvoiceFormStore = create<InvoiceFormState>((set, get) => ({
 
             set({
                 customerId: invoice.customerId || null,
+                walkInCustomerName: invoice.walkInCustomerName || '',
                 invoiceDate: new Date(invoice.invoiceDate).toISOString().split('T')[0],
                 dueDate: invoice.dueDate ? new Date(invoice.dueDate).toISOString().split('T')[0] : getDefaultDueDate(),
                 items: items.map((item) => ({
@@ -301,6 +308,30 @@ export const useInvoiceFormStore = create<InvoiceFormState>((set, get) => ({
         }
     },
 
+    initializeFromSettings: () => {
+        try {
+            const saved = localStorage.getItem('miprinters_settings');
+            if (saved) {
+                const settings = JSON.parse(saved);
+
+                // Calculate due date based on default terms
+                const terms = settings.defaultPaymentTerms || 30;
+                const date = new Date();
+                date.setDate(date.getDate() + terms);
+                const dueDate = date.toISOString().split('T')[0];
+
+                set({
+                    taxRate: settings.defaultTaxRate || 0,
+                    dueDate: dueDate,
+                });
+
+                get().recalculateTotals();
+            }
+        } catch (e) {
+            console.error('Failed to load settings:', e);
+        }
+    },
+
     saveInvoice: async (asDraft = false) => {
         const state = get();
         set({ isLoading: true });
@@ -309,14 +340,53 @@ export const useInvoiceFormStore = create<InvoiceFormState>((set, get) => ({
             const now = Date.now();
             const invoiceLocalId = state.editingInvoiceId || generateLocalId();
 
-            // Generate invoice number (simplified - will be enhanced with settings)
-            const count = await db.invoices.count();
-            const invoiceNumber = `INV-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
+            // Generate invoice number from Settings
+            let invoiceNumber = '';
+
+            if (state.editingInvoiceId) {
+                // Keep existing number if editing
+                const existing = await db.invoices.get(state.editingInvoiceId);
+                invoiceNumber = existing?.invoiceNumber || '';
+            }
+
+            // If new or missing number, generate one
+            if (!invoiceNumber) {
+                try {
+                    const saved = localStorage.getItem('miprinters_settings');
+                    if (saved) {
+                        const settings = JSON.parse(saved);
+                        const prefix = settings.invoicePrefix || 'INV';
+                        const nextNum = settings.nextInvoiceNumber || 1;
+                        const year = new Date().getFullYear();
+
+                        // Format: PRE-YEAR-0001
+                        invoiceNumber = `${prefix}-${year}-${String(nextNum).padStart(4, '0')}`;
+
+                        // Increment and save next number immediately to prevent duplicates
+                        // Note: In a real multi-user app, this should be done on the server/DB side via a transaction
+                        const newSettings = { ...settings, nextInvoiceNumber: nextNum + 1 };
+                        localStorage.setItem('miprinters_settings', JSON.stringify(newSettings));
+
+                        // Also try to update DB settings if possible (best effort)
+                        // This logic mirrors the saveSettings in Settings page, 
+                        // but we rely on local sync for now.
+                    }
+                } catch (e) {
+                    console.error('Error generating invoice number from settings:', e);
+                }
+
+                // Fallback if still empty
+                if (!invoiceNumber) {
+                    const count = await db.invoices.count();
+                    invoiceNumber = `INV-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
+                }
+            }
 
             const invoiceData: LocalInvoice = {
                 localId: invoiceLocalId,
                 customerId: state.customerId || undefined,
-                invoiceNumber: state.editingInvoiceId ? (await db.invoices.get(state.editingInvoiceId))?.invoiceNumber || invoiceNumber : invoiceNumber,
+                walkInCustomerName: (!state.customerId && state.walkInCustomerName) ? state.walkInCustomerName : undefined,
+                invoiceNumber: invoiceNumber,
                 invoiceDate: new Date(state.invoiceDate).getTime(),
                 dueDate: state.dueDate ? new Date(state.dueDate).getTime() : undefined,
                 customColumns: state.customColumns,

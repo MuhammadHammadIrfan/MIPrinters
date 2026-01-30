@@ -353,14 +353,41 @@ export default function SettingsPage() {
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Next Number</label>
-                            <input
-                                type="number"
-                                value={settings.nextInvoiceNumber}
-                                onChange={(e) => setSettings({ ...settings, nextInvoiceNumber: parseInt(e.target.value) || 1 })}
-                                className="input"
-                                min={1}
-                            />
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Next Invoice Number</label>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => {
+                                        const current = settings.nextInvoiceNumber || 0;
+                                        setSettings({ ...settings, nextInvoiceNumber: Math.max(1, current - 1) });
+                                    }}
+                                    className="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-lg text-gray-600 hover:bg-gray-200 active:bg-gray-300 font-bold text-lg"
+                                >
+                                    -
+                                </button>
+                                <input
+                                    type="number"
+                                    value={settings.nextInvoiceNumber}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        const num = parseInt(val);
+                                        setSettings({
+                                            ...settings,
+                                            nextInvoiceNumber: val === '' ? 1 : (isNaN(num) ? 1 : num)
+                                        });
+                                    }}
+                                    className="input text-center"
+                                    min={1}
+                                />
+                                <button
+                                    onClick={() => {
+                                        const current = settings.nextInvoiceNumber || 0;
+                                        setSettings({ ...settings, nextInvoiceNumber: current + 1 });
+                                    }}
+                                    className="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-lg text-gray-600 hover:bg-gray-200 active:bg-gray-300 font-bold text-lg"
+                                >
+                                    +
+                                </button>
+                            </div>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Default Payment Terms</label>
@@ -378,14 +405,41 @@ export default function SettingsPage() {
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Default Tax %</label>
-                            <input
-                                type="number"
-                                value={settings.defaultTaxRate}
-                                onChange={(e) => setSettings({ ...settings, defaultTaxRate: parseFloat(e.target.value) || 0 })}
-                                step="0.5"
-                                className="input"
-                                min={0}
-                            />
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => {
+                                        const current = settings.defaultTaxRate || 0;
+                                        setSettings({ ...settings, defaultTaxRate: Math.max(0, current - 0.5) });
+                                    }}
+                                    className="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-lg text-gray-600 hover:bg-gray-200 active:bg-gray-300 font-bold text-lg"
+                                >
+                                    -
+                                </button>
+                                <input
+                                    type="number"
+                                    value={settings.defaultTaxRate}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        const num = parseFloat(val);
+                                        setSettings({
+                                            ...settings,
+                                            defaultTaxRate: val === '' ? 0 : (isNaN(num) ? 0 : num)
+                                        });
+                                    }}
+                                    step="0.5"
+                                    className="input text-center"
+                                    min={0}
+                                />
+                                <button
+                                    onClick={() => {
+                                        const current = settings.defaultTaxRate || 0;
+                                        setSettings({ ...settings, defaultTaxRate: current + 0.5 });
+                                    }}
+                                    className="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-lg text-gray-600 hover:bg-gray-200 active:bg-gray-300 font-bold text-lg"
+                                >
+                                    +
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

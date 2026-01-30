@@ -253,12 +253,15 @@ function NewInvoicePageContent() {
     // Load real customers
     const { customers, loadCustomers, isInitialized: customersLoaded } = useCustomerStore();
     const setCustomerIdFromUrl = useInvoiceFormStore((s) => s.setCustomerId);
+    const initializeFromSettings = useInvoiceFormStore((s) => s.initializeFromSettings);
 
     useEffect(() => {
         if (!customersLoaded) {
             loadCustomers();
         }
-    }, [customersLoaded, loadCustomers]);
+        // Initialize defaults from settings (Tax, Due Date)
+        initializeFromSettings();
+    }, [customersLoaded, loadCustomers, initializeFromSettings]);
 
     // Auto-select customer from URL query parameter
     useEffect(() => {
@@ -278,6 +281,7 @@ function NewInvoicePageContent() {
 
     const {
         customerId,
+        walkInCustomerName,
         invoiceDate,
         dueDate,
         items,
@@ -297,6 +301,7 @@ function NewInvoicePageContent() {
         marginPercentage,
         isLoading,
         setCustomerId,
+        setWalkInCustomerName,
         setInvoiceDate,
         setDueDate,
         addItem,
@@ -401,7 +406,7 @@ function NewInvoicePageContent() {
                             <select
                                 value={customerId || ''}
                                 onChange={(e) => setCustomerId(e.target.value || null)}
-                                className="input"
+                                className="input mb-2"
                             >
                                 <option value="">Walk-in Customer</option>
                                 {customers.map((customer) => (
@@ -410,6 +415,17 @@ function NewInvoicePageContent() {
                                     </option>
                                 ))}
                             </select>
+
+                            {/* Walk-in Customer Name Input */}
+                            {!customerId && (
+                                <input
+                                    type="text"
+                                    value={walkInCustomerName}
+                                    onChange={(e) => setWalkInCustomerName(e.target.value)}
+                                    placeholder="Enter Customer Name (Optional)"
+                                    className="input bg-gray-50 border-dashed"
+                                />
+                            )}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Date</label>
