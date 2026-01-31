@@ -101,13 +101,20 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
 
     deleteInvoice: async (localId) => {
         const now = Date.now();
+        console.log('[Delete Invoice] Starting soft delete for:', localId);
+
         try {
+            // Get invoice first to verify it exists
+            const invoice = await db.invoices.get(localId);
+            console.log('[Delete Invoice] Found invoice:', invoice?.invoiceNumber, 'id:', invoice?.id);
+
             // Soft delete: mark as deleted instead of actually deleting
             await db.invoices.update(localId, {
                 isDeleted: true,
                 updatedAt: now,
                 syncStatus: 'pending'
             });
+            console.log('[Delete Invoice] Marked as deleted in IndexedDB');
 
             // Still delete items locally (they'll be removed in cloud when invoice syncs)
             await db.invoiceItems.where('invoiceLocalId').equals(localId).delete();
@@ -122,10 +129,13 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
                 status: 'pending',
                 createdAt: now,
             });
+            console.log('[Delete Invoice] Added to sync queue');
 
             set((state) => ({
                 invoices: state.invoices.filter((i) => i.localId !== localId),
             }));
+
+            console.log('[Delete Invoice] Soft delete complete, waiting for sync...');
         } catch (error) {
             console.error('Failed to delete invoice:', error);
             throw error;

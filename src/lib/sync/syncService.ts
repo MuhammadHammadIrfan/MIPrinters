@@ -330,6 +330,7 @@ async function syncInvoices() {
     console.log(`Syncing ${pendingInvoices.length} pending invoices...`);
 
     for (const invoice of pendingInvoices) {
+        console.log(`[Sync Invoice] ${invoice.invoiceNumber} - isDeleted: ${invoice.isDeleted}, localId: ${invoice.localId}`);
         try {
             let customerId = null;
             if (invoice.customerId) {
@@ -371,6 +372,8 @@ async function syncInvoices() {
                 console.error('Sync invoice error:', error.message);
                 continue;
             }
+
+            console.log(`[Sync Invoice] SUCCESS - ${invoice.invoiceNumber}, isDeleted: ${invoice.isDeleted}, cloud id: ${data}`);
 
             await db.invoices.update(invoice.localId, {
                 id: data,

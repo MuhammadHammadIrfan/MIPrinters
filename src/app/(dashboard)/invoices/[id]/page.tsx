@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Header } from '@/components/layout';
 import { db, type LocalInvoice, type LocalInvoiceItem } from '@/lib/db';
 import { useCustomerStore } from '@/stores/customerStore';
+import { useInvoiceStore } from '@/stores/invoiceStore';
 import { formatCurrency, formatDate } from '@/lib/utils/formatters';
 import { runSync } from '@/lib/sync/syncService';
 import { useConfirmDialog, useToast } from '@/components/ui/DialogProvider';
@@ -200,6 +201,9 @@ export default function InvoiceDetailPage() {
     const loadCustomers = useCustomerStore((state) => state.loadCustomers);
     const customersInitialized = useCustomerStore((state) => state.isInitialized);
 
+    // Invoice store for delete
+    const deleteInvoice = useInvoiceStore((state) => state.deleteInvoice);
+
     // Load customers once
     useEffect(() => {
         if (!customersInitialized) {
@@ -266,8 +270,10 @@ export default function InvoiceDetailPage() {
         if (!confirmed) return;
 
         try {
-            await db.invoices.delete(invoiceId);
-            await db.invoiceItems.where('invoiceLocalId').equals(invoiceId).delete();
+            // Use invoiceStore.deleteInvoice for soft delete + sync
+            await deleteInvoice(invoiceId);
+            // Trigger sync to update cloud
+            await runSync();
             router.push('/invoices');
         } catch (error) {
             console.error('Failed to delete invoice:', error);
