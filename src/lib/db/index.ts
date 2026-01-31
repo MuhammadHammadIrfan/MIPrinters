@@ -31,6 +31,7 @@ export interface LocalInvoice extends Omit<Invoice, 'id' | 'customer' | 'items' 
     id?: string;
     invoiceDate: number;
     dueDate?: number;
+    isDeleted?: boolean;
     createdAt: number;
     updatedAt: number;
 }

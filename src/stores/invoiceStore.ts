@@ -53,8 +53,9 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
 
 
 
-            // Fetch invoices
-            const invoices = await db.invoices.orderBy('createdAt').reverse().toArray();
+            // Fetch invoices (excluding soft-deleted)
+            const allInvoices = await db.invoices.orderBy('createdAt').reverse().toArray();
+            const invoices = allInvoices.filter(i => i.isDeleted !== true);
 
             // Fetch customers to map names
             const customers = await db.customers.toArray();
@@ -101,14 +102,22 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
     deleteInvoice: async (localId) => {
         const now = Date.now();
         try {
-            await db.invoices.delete(localId);
+            // Soft delete: mark as deleted instead of actually deleting
+            await db.invoices.update(localId, {
+                isDeleted: true,
+                updatedAt: now,
+                syncStatus: 'pending'
+            });
+
+            // Still delete items locally (they'll be removed in cloud when invoice syncs)
             await db.invoiceItems.where('invoiceLocalId').equals(localId).delete();
 
+            // Add to sync queue to sync the soft delete
             await db.syncQueue.add({
                 entityType: 'invoice',
                 entityLocalId: localId,
-                operation: 'delete',
-                payload: { localId },
+                operation: 'update', // Just updating isDeleted flag
+                payload: { isDeleted: true },
                 retryCount: 0,
                 status: 'pending',
                 createdAt: now,

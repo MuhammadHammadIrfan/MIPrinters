@@ -103,10 +103,11 @@ export async function pullFromCloud(): Promise<void> {
             }
         }
 
-        // Pull invoices
+        // Pull invoices (excluding soft-deleted)
         const { data: cloudInvoices, error: invoicesError } = await supabase
             .from('invoices')
             .select('*')
+            .or('is_deleted.is.null,is_deleted.eq.false')
             .order('created_at', { ascending: false });
 
         if (invoicesError) {
@@ -221,10 +222,11 @@ export async function pullFromCloud(): Promise<void> {
             }
         }
 
-        // Pull suppliers
+        // Pull suppliers (excluding soft-deleted)
         const { data: cloudSuppliers, error: suppliersError } = await supabase
             .from('suppliers')
             .select('*')
+            .or('is_active.is.null,is_active.eq.true')
             .order('created_at', { ascending: false });
 
         if (suppliersError) {
@@ -362,6 +364,7 @@ async function syncInvoices() {
                 p_internal_notes: invoice.internalNotes || null,
                 p_status: invoice.status || 'final',
                 p_custom_columns: invoice.customColumns || [],
+                p_is_deleted: invoice.isDeleted || false,
             });
 
             if (error) {
