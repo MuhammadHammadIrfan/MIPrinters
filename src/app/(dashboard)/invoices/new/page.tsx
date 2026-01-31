@@ -208,28 +208,29 @@ function ReplicationModal({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
             <div className="w-full max-w-xs bg-white rounded-xl shadow-xl p-4">
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                    📋 Replicate {type === 'row' ? 'Row' : field}
+                    📋 Replicate {type === 'row' ? 'Item' : field}
                 </h3>
                 <p className="text-sm text-gray-500 mb-4">
-                    {type === 'row' ? 'Copy entire row to rows below' : 'Copy this value to rows below'}
+                    {type === 'row' ? 'Copy entire item to items below' : 'Copy this value to items below'}
                 </p>
-                <div className="space-y-2">
-                    {[2, 3, 5, 10].map((count) => (
+                {/* Scrollable options container */}
+                <div className="max-h-48 overflow-y-auto space-y-1 -mx-1 px-1">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((count) => (
                         <button
                             key={count}
                             onClick={() => {
                                 onReplicate(count);
                                 onClose();
                             }}
-                            className="w-full py-2 px-4 text-left rounded-lg hover:bg-green-50 text-gray-700 transition-colors"
+                            className="w-full py-2.5 px-4 text-left rounded-lg active:bg-green-100 hover:bg-green-50 text-gray-700 transition-colors"
                         >
-                            Next {count} rows
+                            Next {count} {count === 1 ? 'item' : 'items'}
                         </button>
                     ))}
                 </div>
                 <button
                     onClick={onClose}
-                    className="mt-4 w-full py-2 text-sm text-gray-500 hover:text-gray-700"
+                    className="mt-4 w-full py-2 text-sm text-gray-500 active:text-gray-700 hover:text-gray-700"
                 >
                     Cancel
                 </button>
@@ -351,8 +352,8 @@ function NewInvoicePageContent() {
 
     const handleRemoveColumn = async (columnId: string, columnLabel: string) => {
         const confirmed = await confirm({
-            title: 'Remove Column',
-            message: `Are you sure you want to remove the "${columnLabel}" column? This will delete all data in this column.`,
+            title: 'Remove Field',
+            message: `Are you sure you want to remove the "${columnLabel}" field? This will delete all data in this field.`,
             confirmText: 'Remove',
             variant: 'danger',
         });
@@ -456,7 +457,7 @@ function NewInvoicePageContent() {
                             onClick={addItem}
                             className="text-sm text-green-600 hover:text-green-700 font-medium flex items-center gap-1"
                         >
-                            <span>➕</span> Add Row
+                            <span>➕</span> Add Item
                         </button>
                     </div>
 
@@ -480,7 +481,7 @@ function NewInvoicePageContent() {
                                     onClick={() => setShowColumnModal(true)}
                                     className="flex items-center gap-1 bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-medium active:bg-gray-200"
                                 >
-                                    <span>+ Add Column</span>
+                                    <span>+ Add Field</span>
                                 </button>
                             </div>
 
@@ -518,7 +519,7 @@ function NewInvoicePageContent() {
                                                     <button
                                                         onClick={() => handleRemoveColumn(col.id, col.label)}
                                                         className="w-5 h-5 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded font-bold transition-colors"
-                                                        title="Remove Column"
+                                                        title="Remove Field"
                                                     >
                                                         ×
                                                     </button>
@@ -529,7 +530,7 @@ function NewInvoicePageContent() {
                                             <button
                                                 onClick={() => setShowColumnModal(true)}
                                                 className="w-6 h-6 flex items-center justify-center text-white bg-green-500 hover:bg-green-600 rounded-full font-bold shadow-sm transition-colors"
-                                                title="Add Column"
+                                                title="Add Field"
                                             >
                                                 +
                                             </button>
@@ -560,7 +561,7 @@ function NewInvoicePageContent() {
                     )}
 
                     <p className="mt-3 text-xs text-gray-400 italic">
-                        💡 Double-tap #{' '} to replicate entire row, or any specific Field/Cell to replicate that value on rows below.
+                        💡 Double-tap # to duplicate entire item, or any cell to replicate that value to items below.
                     </p>
                 </div>
 
@@ -665,11 +666,11 @@ function NewInvoicePageContent() {
                     {/* Internal Summary (Cost & Margin) */}
                     <div className="card bg-gray-50 border-dashed">
                         <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                            🔒 Internal (Not on PDF)
+                            🔒 Internal (Not Printed on Invoice)
                         </h3>
                         <div className="space-y-3">
                             <div>
-                                <label className="block text-xs text-gray-500 mb-1">Enter costs per item:</label>
+                                <label className="block text-xs text-gray-500 mb-1">Enter cost per item:</label>
                                 <div className="flex flex-wrap gap-2">
                                     {items.filter(i => i.description.trim()).map((item, index) => (
                                         <div key={item.localId} className="flex items-center gap-1">
@@ -703,7 +704,7 @@ function NewInvoicePageContent() {
                 <div className="card mt-4">
                     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Notes (On PDF)</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Note (Printed on Invoice)</label>
                             <textarea
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
@@ -713,11 +714,11 @@ function NewInvoicePageContent() {
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Internal Notes</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Internal Note</label>
                             <textarea
                                 value={internalNotes}
                                 onChange={(e) => setInternalNotes(e.target.value)}
-                                placeholder="Private notes (not on PDF)..."
+                                placeholder="Private note (not printed on invoice)..."
                                 rows={2}
                                 className="input bg-gray-50"
                             />
@@ -759,12 +760,12 @@ function NewInvoicePageContent() {
             {showColumnModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
                     <div className="w-full max-w-sm bg-white rounded-xl shadow-xl p-4">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-3">Add Custom Column</h3>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-3">Add Custom Field</h3>
                         <input
                             type="text"
                             value={newColumnName}
                             onChange={(e) => setNewColumnName(e.target.value)}
-                            placeholder="Column Name (e.g. Warranty, Color)"
+                            placeholder="Field Name (e.g. Warranty, Color)"
                             className="input mb-4"
                             autoFocus
                         />

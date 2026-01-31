@@ -7,6 +7,7 @@ import { Header } from '@/components/layout';
 import { useSupplierStore } from '@/stores/supplierStore';
 import { db, type LocalSupplier } from '@/lib/db';
 import { useConfirmDialog, useToast } from '@/components/ui/DialogProvider';
+import { formatPhone } from '@/lib/utils/formatters';
 
 // Helper to format phone for WhatsApp (Pakistan format)
 function formatPhoneForWhatsApp(phone: string): string {
@@ -197,10 +198,10 @@ export default function SupplierDetailPage() {
                                 <div className="flex gap-2">
                                     <a
                                         href={`tel:${supplier.phone}`}
-                                        className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 bg-green-50 text-green-700 rounded-lg font-medium hover:bg-green-100 transition-colors"
+                                        className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 bg-green-50 text-green-700 rounded-lg font-medium active:bg-green-100 hover:bg-green-100 transition-colors"
                                     >
                                         <span>📞</span>
-                                        Call
+                                        {formatPhone(supplier.phone)}
                                     </a>
                                     <a
                                         href={`https://wa.me/${formatPhoneForWhatsApp(supplier.phone)}`}

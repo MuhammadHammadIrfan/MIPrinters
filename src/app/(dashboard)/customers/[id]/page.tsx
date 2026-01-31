@@ -269,9 +269,9 @@ export default function CustomerDetailPage() {
                                     </div>
                                 )}
                                 {customer.email && (
-                                    <div>
+                                    <div className="min-w-0 overflow-hidden">
                                         <p className="text-gray-500">Email</p>
-                                        <a href={`mailto:${customer.email}`} className="font-medium text-green-600">
+                                        <a href={`mailto:${customer.email}`} className="font-medium text-green-600 block truncate" title={customer.email}>
                                             ✉️ {customer.email}
                                         </a>
                                     </div>

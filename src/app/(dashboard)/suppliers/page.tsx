@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Header } from '@/components/layout';
 import { useSupplierStore } from '@/stores/supplierStore';
+import { formatPhone } from '@/lib/utils/formatters';
 
 const SUPPLIER_TYPES: Record<string, { label: string; emoji: string }> = {
     offset: { label: 'Offset Printing', emoji: '🖨️' },
@@ -114,7 +115,7 @@ export default function SuppliersPage() {
                                 <Link
                                     key={supplier.localId}
                                     href={`/suppliers/${supplier.localId}`}
-                                    className="card block hover:border-green-500 transition-colors"
+                                    className="card block active:border-green-500 hover:border-green-500 transition-colors"
                                 >
                                     <div className="flex items-start gap-3">
                                         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-2xl flex-shrink-0">
@@ -133,7 +134,7 @@ export default function SuppliersPage() {
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-3 mt-1 text-sm text-gray-400">
-                                                {supplier.phone && <span>📞 {supplier.phone}</span>}
+                                                {supplier.phone && <span>📞 {formatPhone(supplier.phone)}</span>}
                                             </div>
                                             {supplier.notes && (
                                                 <p className="text-sm text-gray-500 truncate mt-1">{supplier.notes}</p>

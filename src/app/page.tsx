@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { formatPhone } from '@/lib/utils/formatters';
 
 interface BusinessInfo {
   businessName: string;
@@ -83,7 +84,7 @@ export default function HomePage() {
     loadInfo();
   }, []);
 
-  const displayPhone = businessInfo.phone || '0300-1234567';
+  const displayPhone = formatPhone(businessInfo.phone) || '0300-1234567';
   const cleanPhone = businessInfo.phone.replace(/\D/g, '') || '03001234567';
   const whatsappPhone = formatPhoneForWhatsApp(businessInfo.phone || '03001234567');
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Header } from '@/components/layout';
 import { createClient } from '@/lib/supabase/client';
 import { useToast, useConfirmDialog } from '@/components/ui/DialogProvider';
+import { db } from '@/lib/db';
 
 interface BusinessSettings {
     businessName: string;
@@ -58,6 +59,54 @@ export default function SettingsPage() {
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+    // Current invoice number (calculated from existing invoices)
+    const [currentInvoiceNumber, setCurrentInvoiceNumber] = useState<number>(0);
+    const [nextInvoicePreview, setNextInvoicePreview] = useState<string>('');
+
+    // Calculate current invoice number from existing invoices
+    const calculateCurrentInvoiceNumber = async (prefix: string) => {
+        try {
+            // Clean prefix
+            let cleanPrefix = prefix.trim();
+            while (cleanPrefix.endsWith('-')) {
+                cleanPrefix = cleanPrefix.slice(0, -1);
+            }
+
+            const year = new Date().getFullYear();
+            const allInvoices = await db.invoices.toArray();
+            let highestNum = 0;
+
+            // Pattern to match: PREFIX-YEAR-NNNN
+            const pattern = new RegExp(`^${cleanPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-${year}-(\\d+)$`, 'i');
+
+            for (const inv of allInvoices) {
+                if (inv.invoiceNumber) {
+                    const match = inv.invoiceNumber.match(pattern);
+                    if (match) {
+                        const num = parseInt(match[1], 10);
+                        if (num > highestNum) {
+                            highestNum = num;
+                        }
+                    }
+                }
+            }
+
+            setCurrentInvoiceNumber(highestNum);
+
+            // Calculate next number preview
+            const skipTo = settings.nextInvoiceNumber || 1;
+            const nextNum = Math.max(skipTo, highestNum + 1);
+            setNextInvoicePreview(`${cleanPrefix}-${year}-${String(nextNum).padStart(4, '0')}`);
+        } catch (e) {
+            console.error('Error calculating invoice number:', e);
+        }
+    };
+
+    // Recalculate on prefix or skipTo change
+    useEffect(() => {
+        calculateCurrentInvoiceNumber(settings.invoicePrefix);
+    }, [settings.invoicePrefix, settings.nextInvoiceNumber]);
 
     // Load settings from localStorage AND Cloud on mount
     useEffect(() => {
@@ -350,44 +399,49 @@ export default function SettingsPage() {
                                 value={settings.invoicePrefix}
                                 onChange={(e) => setSettings({ ...settings, invoicePrefix: e.target.value })}
                                 className="input"
+                                placeholder="e.g., INV, MIP"
                             />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Next Invoice Number</label>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => {
-                                        const current = settings.nextInvoiceNumber || 0;
-                                        setSettings({ ...settings, nextInvoiceNumber: Math.max(1, current - 1) });
-                                    }}
-                                    className="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-lg text-gray-600 hover:bg-gray-200 active:bg-gray-300 font-bold text-lg"
-                                >
-                                    -
-                                </button>
-                                <input
-                                    type="number"
-                                    value={settings.nextInvoiceNumber}
-                                    onChange={(e) => {
-                                        const val = e.target.value;
-                                        const num = parseInt(val);
-                                        setSettings({
-                                            ...settings,
-                                            nextInvoiceNumber: val === '' ? 1 : (isNaN(num) ? 1 : num)
-                                        });
-                                    }}
-                                    className="input text-center"
-                                    min={1}
-                                />
-                                <button
-                                    onClick={() => {
-                                        const current = settings.nextInvoiceNumber || 0;
-                                        setSettings({ ...settings, nextInvoiceNumber: current + 1 });
-                                    }}
-                                    className="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-lg text-gray-600 hover:bg-gray-200 active:bg-gray-300 font-bold text-lg"
-                                >
-                                    +
-                                </button>
+                            <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                <p className="text-lg font-mono font-semibold text-green-600">
+                                    {nextInvoicePreview || 'Loading...'}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                    {currentInvoiceNumber > 0
+                                        ? `Last invoice: #${String(currentInvoiceNumber).padStart(4, '0')}`
+                                        : 'No invoices yet this year'}
+                                </p>
                             </div>
+                        </div>
+                        <div className="col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Skip Ahead To (Optional)
+                            </label>
+                            <p className="text-xs text-gray-500 mb-2">
+                                Only use if you want to skip invoice numbers (e.g., start at 100)
+                            </p>
+                            <input
+                                type="number"
+                                value={settings.nextInvoiceNumber || ''}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    const num = parseInt(val);
+                                    setSettings({
+                                        ...settings,
+                                        nextInvoiceNumber: val === '' ? 1 : (isNaN(num) ? 1 : Math.max(1, num))
+                                    });
+                                }}
+                                className="input"
+                                min={1}
+                                placeholder={`Current: ${currentInvoiceNumber + 1}`}
+                            />
+                            {settings.nextInvoiceNumber > currentInvoiceNumber + 1 && (
+                                <p className="text-xs text-amber-600 mt-1">
+                                    ⚠️ Will skip to #{String(settings.nextInvoiceNumber).padStart(4, '0')}
+                                </p>
+                            )}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Default Payment Terms</label>

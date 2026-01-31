@@ -18,15 +18,17 @@ interface DashboardStats {
 
 function StatCard({ title, value, subtitle, icon, color }: { title: string; value: string; subtitle?: string; icon?: string; color: string }) {
     return (
-        <div className="card">
-            <div className="flex items-start justify-between">
-                <div>
-                    <p className="text-sm text-gray-500">{title}</p>
-                    <p className="mt-1 text-2xl font-bold text-gray-900">{value}</p>
-                    {subtitle && <p className="mt-0.5 text-xs text-gray-400">{subtitle}</p>}
+        <div className="card overflow-hidden">
+            <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-500 truncate">{title}</p>
+                    <p className="mt-1 text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 truncate" title={value}>
+                        {value}
+                    </p>
+                    {subtitle && <p className="mt-0.5 text-xs text-gray-400 truncate">{subtitle}</p>}
                 </div>
                 {icon && (
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${color}`}>
+                    <div className={`flex-shrink-0 flex h-10 w-10 items-center justify-center rounded-lg ${color}`}>
                         <span className="text-xl">{icon}</span>
                     </div>
                 )}
@@ -123,8 +125,8 @@ function MiniCalendar({ isOpen, onClose }: { isOpen: boolean; onClose: () => voi
                             <div
                                 key={day}
                                 className={`text-center py-1.5 text-sm rounded-lg cursor-default ${isToday
-                                        ? 'bg-green-600 text-white font-bold'
-                                        : 'text-gray-700 hover:bg-gray-50'
+                                    ? 'bg-green-600 text-white font-bold'
+                                    : 'text-gray-700 hover:bg-gray-50'
                                     }`}
                             >
                                 {day}

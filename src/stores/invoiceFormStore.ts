@@ -353,24 +353,47 @@ export const useInvoiceFormStore = create<InvoiceFormState>((set, get) => ({
             if (!invoiceNumber) {
                 try {
                     const saved = localStorage.getItem('miprinters_settings');
-                    if (saved) {
-                        const settings = JSON.parse(saved);
-                        const prefix = settings.invoicePrefix || 'INV';
-                        const nextNum = settings.nextInvoiceNumber || 1;
-                        const year = new Date().getFullYear();
+                    const settings = saved ? JSON.parse(saved) : {};
 
-                        // Format: PRE-YEAR-0001
-                        invoiceNumber = `${prefix}-${year}-${String(nextNum).padStart(4, '0')}`;
-
-                        // Increment and save next number immediately to prevent duplicates
-                        // Note: In a real multi-user app, this should be done on the server/DB side via a transaction
-                        const newSettings = { ...settings, nextInvoiceNumber: nextNum + 1 };
-                        localStorage.setItem('miprinters_settings', JSON.stringify(newSettings));
-
-                        // Also try to update DB settings if possible (best effort)
-                        // This logic mirrors the saveSettings in Settings page, 
-                        // but we rely on local sync for now.
+                    // Get prefix and clean any trailing dashes/spaces
+                    let prefix = (settings.invoicePrefix || 'INV').trim();
+                    // Remove trailing dashes to prevent double dashes
+                    while (prefix.endsWith('-')) {
+                        prefix = prefix.slice(0, -1);
                     }
+
+                    const year = new Date().getFullYear();
+
+                    // Find the highest existing invoice number to continue from
+                    // This ensures we never restart from 0001 even if settings are reset
+                    const allInvoices = await db.invoices.toArray();
+                    let highestNum = 0;
+
+                    // Pattern to match: PREFIX-YEAR-NNNN (extract the NNNN part)
+                    const pattern = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-${year}-(\\d+)$`, 'i');
+
+                    for (const inv of allInvoices) {
+                        if (inv.invoiceNumber) {
+                            const match = inv.invoiceNumber.match(pattern);
+                            if (match) {
+                                const num = parseInt(match[1], 10);
+                                if (num > highestNum) {
+                                    highestNum = num;
+                                }
+                            }
+                        }
+                    }
+
+                    // Next number is the higher of: settings value OR (highest existing + 1)
+                    const settingsNum = settings.nextInvoiceNumber || 1;
+                    const nextNum = Math.max(settingsNum, highestNum + 1);
+
+                    // Format: PREFIX-YEAR-0001
+                    invoiceNumber = `${prefix}-${year}-${String(nextNum).padStart(4, '0')}`;
+
+                    // Update settings to reflect the incremented number
+                    const newSettings = { ...settings, nextInvoiceNumber: nextNum + 1 };
+                    localStorage.setItem('miprinters_settings', JSON.stringify(newSettings));
                 } catch (e) {
                     console.error('Error generating invoice number from settings:', e);
                 }
