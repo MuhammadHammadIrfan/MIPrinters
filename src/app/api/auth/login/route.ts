@@ -38,11 +38,12 @@ export async function POST(request: Request) {
             );
         }
 
-        // Create auth token (base64 encoded JSON with expiry)
+        // Create auth token (base64 encoded JSON with expiry and session version)
         const tokenData = {
             id: data.user.id,
             email: data.user.email,
             businessName: data.user.businessName,
+            sessionVersion: data.user.sessionVersion || 1, // Include session version for invalidation
             exp: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
         };
         const token = Buffer.from(JSON.stringify(tokenData)).toString('base64');
