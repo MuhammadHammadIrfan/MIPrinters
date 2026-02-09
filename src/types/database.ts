@@ -12,6 +12,10 @@ export interface Customer {
     address?: string;
     city?: string;
     notes?: string;
+    additionalContacts?: { name: string; phone: string }[];
+    // Tax registration fields (for Type B invoices)
+    stRegNo?: string;      // Sales Tax Registration Number
+    ntnNo?: string;        // National Tax Number
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
@@ -28,6 +32,9 @@ export interface CustomerInput {
     address?: string;
     city?: string;
     notes?: string;
+    stRegNo?: string;
+    ntnNo?: string;
+    additionalContacts?: { name: string; phone: string }[];
 }
 
 // =====================
@@ -37,7 +44,7 @@ export interface Supplier {
     id: string;
     name: string;
     phone?: string;
-    supplierType?: 'offset' | 'digital' | 'binding' | 'flexo' | 'screen' | 'other';
+    supplierType?: string;
     notes?: string;
     isActive: boolean;
     createdAt: Date;
@@ -49,7 +56,7 @@ export interface Supplier {
 export interface SupplierInput {
     name: string;
     phone?: string;
-    supplierType?: 'offset' | 'digital' | 'binding' | 'flexo' | 'screen' | 'other';
+    supplierType?: string;
     notes?: string;
 }
 
@@ -65,6 +72,9 @@ export interface Invoice {
     walkInCustomerName?: string;
     walkInCustomerPhone?: string;
     walkInCustomerAddress?: string;
+
+    // Invoice type: 'A' = Standard (no tax), 'B' = Tax Invoice
+    invoiceType: 'A' | 'B';
 
     invoiceNumber: string;
     invoiceDate: Date;
@@ -141,6 +151,13 @@ export interface InvoiceItem {
     cost: number;
     itemMargin: number;
 
+    // Type B Invoice specific fields (tax invoice)
+    weight?: number;
+    valueExclTax?: number;      // Value Excluding Sales Tax
+    salesTaxPercent?: number;   // Sales Tax %
+    totalSalesTax?: number;     // Total Sales Tax
+    valueInclTax?: number;      // Value Including Sales Tax
+
     localId?: string;
     createdAt: Date;
 }
@@ -154,6 +171,12 @@ export interface InvoiceItemInput {
     cost?: number; // Internal
     supplierId?: string;
     customValues?: Record<string, string>;
+    // Type B fields
+    weight?: number;
+    valueExclTax?: number;
+    salesTaxPercent?: number;
+    totalSalesTax?: number;
+    valueInclTax?: number;
 }
 
 export interface InvoiceInput {

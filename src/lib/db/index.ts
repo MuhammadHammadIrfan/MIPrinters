@@ -15,6 +15,7 @@ import type {
 export interface LocalCustomer extends Omit<Customer, 'id' | 'createdAt' | 'updatedAt'> {
     localId: string;
     id?: string;
+    // stRegNo and ntnNo are inherited from Customer
     createdAt: number;
     updatedAt: number;
 }
@@ -32,6 +33,7 @@ export interface LocalInvoice extends Omit<Invoice, 'id' | 'customer' | 'items' 
     invoiceDate: number;
     dueDate?: number;
     isDeleted?: boolean;
+    // invoiceType is inherited from Invoice ('A' | 'B')
     createdAt: number;
     updatedAt: number;
 }
@@ -40,6 +42,7 @@ export interface LocalInvoiceItem extends Omit<InvoiceItem, 'id' | 'supplier' | 
     localId: string;
     id?: string;
     invoiceLocalId: string;
+    // Type B fields (weight, valueExclTax, etc.) are inherited from InvoiceItem
     createdAt: number;
 }
 
@@ -90,10 +93,10 @@ class MIPrintersDB extends Dexie {
     constructor() {
         super('MIPrintersDB');
 
-        this.version(2).stores({
+        this.version(3).stores({
             customers: 'localId, id, name, company, phone, isActive, syncStatus, createdAt',
             suppliers: 'localId, id, name, phone, isActive, syncStatus, createdAt',
-            invoices: 'localId, id, invoiceNumber, customerId, invoiceDate, paymentStatus, status, syncStatus, createdAt',
+            invoices: 'localId, id, invoiceNumber, customerId, invoiceDate, paymentStatus, status, invoiceType, syncStatus, createdAt',
             invoiceItems: 'localId, id, invoiceLocalId, invoiceId, position',
             payments: 'localId, id, invoiceLocalId, invoiceId, paymentDate, syncStatus',
             signedPhotos: 'localId, id, invoiceLocalId',

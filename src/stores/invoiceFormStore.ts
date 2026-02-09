@@ -11,10 +11,15 @@ interface InvoiceFormState {
     // Form data
     customerId: string | null;
     walkInCustomerName: string;
+    walkInStRegNo: string; // For Type B walk-in customers
+    walkInNtnNo: string; // For Type B walk-in customers
     invoiceDate: string;
     dueDate: string;
     items: InvoiceFormItem[];
     customColumns: { id: string; label: string }[];
+
+    // Invoice type: 'A' = Standard (no tax), 'B' = Tax Invoice
+    invoiceType: 'A' | 'B';
 
     // Additional charges
     designCharges: number;
@@ -43,8 +48,11 @@ interface InvoiceFormState {
     // Actions
     setCustomerId: (id: string | null) => void;
     setWalkInCustomerName: (name: string) => void;
+    setWalkInStRegNo: (no: string) => void;
+    setWalkInNtnNo: (no: string) => void;
     setInvoiceDate: (date: string) => void;
     setDueDate: (date: string) => void;
+    setInvoiceType: (type: 'A' | 'B') => void;
 
     addItem: () => void;
     removeItem: (localId: string) => void;
@@ -64,6 +72,7 @@ interface InvoiceFormState {
     setInternalNotes: (notes: string) => void;
 
     recalculateTotals: () => void;
+    recalculateTypeBFields: () => void;
     resetForm: () => void;
     initializeFromSettings: () => void;
     loadInvoice: (invoiceLocalId: string) => Promise<void>;
@@ -90,10 +99,13 @@ export const useInvoiceFormStore = create<InvoiceFormState>((set, get) => ({
     // Initial form data
     customerId: null,
     walkInCustomerName: '',
+    walkInStRegNo: '',
+    walkInNtnNo: '',
     invoiceDate: new Date().toISOString().split('T')[0],
     dueDate: getDefaultDueDate(),
     items: [createEmptyItem()],
     customColumns: [],
+    invoiceType: 'A', // Default to Standard invoice
 
     designCharges: 0,
     deliveryCharges: 0,
@@ -117,12 +129,40 @@ export const useInvoiceFormStore = create<InvoiceFormState>((set, get) => ({
 
     setCustomerId: (id) => set({ customerId: id }),
     setWalkInCustomerName: (name) => set({ walkInCustomerName: name }),
+    setWalkInStRegNo: (no) => set({ walkInStRegNo: no }),
+    setWalkInNtnNo: (no) => set({ walkInNtnNo: no }),
     setInvoiceDate: (date) => set({ invoiceDate: date }),
     setDueDate: (date) => set({ dueDate: date }),
+    setInvoiceType: (type) => {
+        set({ invoiceType: type });
+        // When switching to Type B, load tax rate from settings
+        if (type === 'B') {
+            try {
+                const savedSettings = localStorage.getItem('miprinters_settings');
+                if (savedSettings) {
+                    const settings = JSON.parse(savedSettings);
+                    if (settings.defaultTaxRate) {
+                        set({ taxRate: settings.defaultTaxRate });
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load tax rate from settings:', e);
+            }
+            get().recalculateTypeBFields();
+        } else {
+            // Reset tax rate for Type A
+            set({ taxRate: 0 });
+            get().recalculateTotals();
+        }
+    },
 
     addItem: () => {
-        const { items } = get();
+        const { items, invoiceType } = get();
         set({ items: [...items, createEmptyItem()] });
+        // For Type B, recalculate to apply settings tax rate to new item
+        if (invoiceType === 'B') {
+            get().recalculateTypeBFields();
+        }
     },
 
     removeItem: (localId) => {
@@ -135,7 +175,7 @@ export const useInvoiceFormStore = create<InvoiceFormState>((set, get) => ({
     },
 
     updateItem: (localId, field, value) => {
-        const { items } = get();
+        const { items, invoiceType } = get();
         const newItems = items.map((item) => {
             if (item.localId === localId) {
                 return { ...item, [field]: value };
@@ -143,7 +183,12 @@ export const useInvoiceFormStore = create<InvoiceFormState>((set, get) => ({
             return item;
         });
         set({ items: newItems });
-        get().recalculateTotals();
+        // For Type B, recalculate tax fields after each item update
+        if (invoiceType === 'B') {
+            get().recalculateTypeBFields();
+        } else {
+            get().recalculateTotals();
+        }
     },
 
     updateItemCustomValue: (localId, columnId, value) => {
@@ -223,31 +268,79 @@ export const useInvoiceFormStore = create<InvoiceFormState>((set, get) => ({
     setInternalNotes: (notes) => set({ internalNotes: notes }),
 
     recalculateTotals: () => {
-        const { items, designCharges, deliveryCharges, taxRate, otherCharges } = get();
+        const { items, invoiceType, designCharges, deliveryCharges, taxRate, otherCharges } = get();
+        // For Type B invoices, tax is per item, not overall
+        const effectiveTaxRate = invoiceType === 'B' ? 0 : taxRate;
         const result = calculateInvoiceTotals(items, {
             designCharges,
             deliveryCharges,
-            taxRate,
+            taxRate: effectiveTaxRate,
             otherCharges,
         });
-        set({
-            subtotal: result.subtotal,
-            totalCost: result.totalCost,
-            taxAmount: result.taxAmount,
-            totalAmount: result.totalAmount,
-            margin: result.margin,
-            marginPercentage: result.marginPercentage,
+
+        // For Type B, calculate total based on item-level tax
+        if (invoiceType === 'B') {
+            let totalValueInclTax = 0;
+            for (const item of items) {
+                totalValueInclTax += item.valueInclTax || 0;
+            }
+            const grandTotal = totalValueInclTax + designCharges + deliveryCharges + otherCharges;
+            set({
+                subtotal: result.subtotal,
+                totalCost: result.totalCost,
+                taxAmount: items.reduce((sum, item) => sum + (item.totalSalesTax || 0), 0),
+                totalAmount: grandTotal,
+                margin: result.margin,
+                marginPercentage: result.marginPercentage,
+            });
+        } else {
+            set({
+                subtotal: result.subtotal,
+                totalCost: result.totalCost,
+                taxAmount: result.taxAmount,
+                totalAmount: result.totalAmount,
+                margin: result.margin,
+                marginPercentage: result.marginPercentage,
+            });
+        }
+    },
+
+    // Calculate Type B specific fields (weight, value excl/incl tax, etc.)
+    recalculateTypeBFields: () => {
+        const { items, taxRate, invoiceType } = get();
+        if (invoiceType !== 'B') return;
+
+        const updatedItems = items.map(item => {
+            const amount = item.quantity * item.rate;
+            const valueExclTax = amount;
+            const salesTaxPercent = taxRate;
+            const totalSalesTax = (valueExclTax * salesTaxPercent) / 100;
+            const valueInclTax = valueExclTax + totalSalesTax;
+
+            return {
+                ...item,
+                valueExclTax,
+                salesTaxPercent,
+                totalSalesTax,
+                valueInclTax,
+            };
         });
+
+        set({ items: updatedItems });
+        get().recalculateTotals();
     },
 
     resetForm: () => {
         set({
             customerId: null,
             walkInCustomerName: '',
+            walkInStRegNo: '',
+            walkInNtnNo: '',
             invoiceDate: new Date().toISOString().split('T')[0],
             dueDate: getDefaultDueDate(),
             items: [createEmptyItem()],
             customColumns: [],
+            invoiceType: 'A',
             designCharges: 0,
             deliveryCharges: 0,
             taxRate: 0,
@@ -320,8 +413,13 @@ export const useInvoiceFormStore = create<InvoiceFormState>((set, get) => ({
                 date.setDate(date.getDate() + terms);
                 const dueDate = date.toISOString().split('T')[0];
 
+                const { invoiceType } = get();
+
+                // Only set tax rate from settings if Type B, otherwise 0 for Type A
+                const taxRate = invoiceType === 'B' ? (settings.defaultTaxRate || 0) : 0;
+
                 set({
-                    taxRate: settings.defaultTaxRate || 0,
+                    taxRate,
                     dueDate: dueDate,
                 });
 
@@ -363,37 +461,61 @@ export const useInvoiceFormStore = create<InvoiceFormState>((set, get) => ({
                     }
 
                     const year = new Date().getFullYear();
-
-                    // Find the highest existing invoice number to continue from
-                    // This ensures we never restart from 0001 even if settings are reset
                     const allInvoices = await db.invoices.toArray();
                     let highestNum = 0;
 
-                    // Pattern to match: PREFIX-YEAR-NNNN (extract the NNNN part)
-                    const pattern = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-${year}-(\\d+)$`, 'i');
+                    // Determine numbering based on invoice type
+                    const isTypeB = state.invoiceType === 'B';
 
-                    for (const inv of allInvoices) {
-                        if (inv.invoiceNumber) {
-                            const match = inv.invoiceNumber.match(pattern);
-                            if (match) {
-                                const num = parseInt(match[1], 10);
-                                if (num > highestNum) {
-                                    highestNum = num;
+                    if (isTypeB) {
+                        // Type B: Pattern PREFIX-YEAR-TNNNN (with T prefix)
+                        const pattern = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-${year}-T(\\d+)$`, 'i');
+
+                        for (const inv of allInvoices) {
+                            if (inv.invoiceNumber && inv.invoiceType === 'B') {
+                                const match = inv.invoiceNumber.match(pattern);
+                                if (match) {
+                                    const num = parseInt(match[1], 10);
+                                    if (num > highestNum) {
+                                        highestNum = num;
+                                    }
                                 }
                             }
                         }
+
+                        const settingsNum = settings.nextInvoiceNumberB || 1;
+                        const nextNum = Math.max(settingsNum, highestNum + 1);
+
+                        // Format: PREFIX-YEAR-T0001 (T for Tax invoice)
+                        invoiceNumber = `${prefix}-${year}-T${String(nextNum).padStart(4, '0')}`;
+
+                        const newSettings = { ...settings, nextInvoiceNumberB: nextNum + 1 };
+                        localStorage.setItem('miprinters_settings', JSON.stringify(newSettings));
+                    } else {
+                        // Type A: Pattern PREFIX-YEAR-NNNN (standard)
+                        const pattern = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-${year}-(\\d+)$`, 'i');
+
+                        for (const inv of allInvoices) {
+                            if (inv.invoiceNumber && inv.invoiceType !== 'B') {
+                                const match = inv.invoiceNumber.match(pattern);
+                                if (match) {
+                                    const num = parseInt(match[1], 10);
+                                    if (num > highestNum) {
+                                        highestNum = num;
+                                    }
+                                }
+                            }
+                        }
+
+                        const settingsNum = settings.nextInvoiceNumber || 1;
+                        const nextNum = Math.max(settingsNum, highestNum + 1);
+
+                        // Format: PREFIX-YEAR-0001
+                        invoiceNumber = `${prefix}-${year}-${String(nextNum).padStart(4, '0')}`;
+
+                        const newSettings = { ...settings, nextInvoiceNumber: nextNum + 1 };
+                        localStorage.setItem('miprinters_settings', JSON.stringify(newSettings));
                     }
-
-                    // Next number is the higher of: settings value OR (highest existing + 1)
-                    const settingsNum = settings.nextInvoiceNumber || 1;
-                    const nextNum = Math.max(settingsNum, highestNum + 1);
-
-                    // Format: PREFIX-YEAR-0001
-                    invoiceNumber = `${prefix}-${year}-${String(nextNum).padStart(4, '0')}`;
-
-                    // Update settings to reflect the incremented number
-                    const newSettings = { ...settings, nextInvoiceNumber: nextNum + 1 };
-                    localStorage.setItem('miprinters_settings', JSON.stringify(newSettings));
                 } catch (e) {
                     console.error('Error generating invoice number from settings:', e);
                 }
@@ -401,7 +523,8 @@ export const useInvoiceFormStore = create<InvoiceFormState>((set, get) => ({
                 // Fallback if still empty
                 if (!invoiceNumber) {
                     const count = await db.invoices.count();
-                    invoiceNumber = `INV-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
+                    const typePrefix = state.invoiceType === 'B' ? 'T' : '';
+                    invoiceNumber = `INV-${new Date().getFullYear()}-${typePrefix}${String(count + 1).padStart(4, '0')}`;
                 }
             }
 
@@ -409,6 +532,7 @@ export const useInvoiceFormStore = create<InvoiceFormState>((set, get) => ({
                 localId: invoiceLocalId,
                 customerId: state.customerId || undefined,
                 walkInCustomerName: (!state.customerId && state.walkInCustomerName) ? state.walkInCustomerName : undefined,
+                invoiceType: state.invoiceType,
                 invoiceNumber: invoiceNumber,
                 invoiceDate: new Date(state.invoiceDate).getTime(),
                 dueDate: state.dueDate ? new Date(state.dueDate).getTime() : undefined,
@@ -461,6 +585,12 @@ export const useInvoiceFormStore = create<InvoiceFormState>((set, get) => ({
                     itemMargin: item.quantity * item.rate - item.quantity * (item.cost || 0),
                     supplierId: item.supplierId,
                     customValues: item.customValues,
+                    // Type B fields
+                    weight: item.weight,
+                    valueExclTax: item.valueExclTax,
+                    salesTaxPercent: item.salesTaxPercent,
+                    totalSalesTax: item.totalSalesTax,
+                    valueInclTax: item.valueInclTax,
                     createdAt: now,
                 }));
 

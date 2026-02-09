@@ -246,6 +246,95 @@ export default function CustomerDetailPage() {
                                     className="input"
                                 />
                             </div>
+                            {/* Tax Registration Fields */}
+                            <div className="border-t pt-4 mt-4">
+                                <h4 className="text-sm font-medium text-gray-700 mb-3">Tax Information (for Tax Invoices)</h4>
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">S.T. Reg. No.</label>
+                                        <input
+                                            type="text"
+                                            value={editForm.stRegNo || ''}
+                                            onChange={(e) => setEditForm({ ...editForm, stRegNo: e.target.value })}
+                                            placeholder="Sales Tax Registration Number"
+                                            className="input"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">NTN No.</label>
+                                        <input
+                                            type="text"
+                                            value={editForm.ntnNo || ''}
+                                            onChange={(e) => setEditForm({ ...editForm, ntnNo: e.target.value })}
+                                            placeholder="National Tax Number"
+                                            className="input"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Additional Contacts Section */}
+                            <div className="border-t pt-4 mt-4">
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="block text-sm font-medium text-gray-700">Additional Contacts</label>
+                                    <button
+                                        type="button"
+                                        onClick={() => setEditForm(prev => ({
+                                            ...prev,
+                                            additionalContacts: [...(prev.additionalContacts || []), { name: '', phone: '' }]
+                                        }))}
+                                        className="text-sm text-primary hover:text-primary-dark"
+                                    >
+                                        + Add Contact
+                                    </button>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {(editForm.additionalContacts || []).map((contact, index) => (
+                                        <div key={index} className="flex gap-2 items-start">
+                                            <div className="flex-1">
+                                                <input
+                                                    type="text"
+                                                    value={contact.name}
+                                                    onChange={(e) => {
+                                                        const newContacts = [...(editForm.additionalContacts || [])];
+                                                        newContacts[index] = { ...newContacts[index], name: e.target.value };
+                                                        setEditForm(prev => ({ ...prev, additionalContacts: newContacts }));
+                                                    }}
+                                                    placeholder="Contact Name"
+                                                    className="input text-sm"
+                                                />
+                                            </div>
+                                            <div className="flex-1">
+                                                <input
+                                                    type="tel"
+                                                    value={contact.phone}
+                                                    onChange={(e) => {
+                                                        const newContacts = [...(editForm.additionalContacts || [])];
+                                                        newContacts[index] = { ...newContacts[index], phone: e.target.value };
+                                                        setEditForm(prev => ({ ...prev, additionalContacts: newContacts }));
+                                                    }}
+                                                    placeholder="Phone Number"
+                                                    className="input text-sm"
+                                                />
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const newContacts = (editForm.additionalContacts || []).filter((_, i) => i !== index);
+                                                    setEditForm(prev => ({ ...prev, additionalContacts: newContacts }));
+                                                }}
+                                                className="p-2 text-gray-400 hover:text-red-500"
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {(!editForm.additionalContacts || editForm.additionalContacts.length === 0) && (
+                                        <p className="text-sm text-gray-500 italic">No additional contacts added.</p>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     ) : (
                         <div className="space-y-4">
@@ -294,6 +383,63 @@ export default function CustomerDetailPage() {
                                 <div className="pt-3 border-t border-gray-200">
                                     <p className="text-xs text-gray-500 mb-1">Notes</p>
                                     <p className="text-sm text-gray-700">{customer.notes}</p>
+                                </div>
+                            )}
+
+                            {/* Additional Contacts Display */}
+                            {customer.additionalContacts && customer.additionalContacts.length > 0 && (
+                                <div className="pt-3 border-t border-gray-200">
+                                    <p className="text-xs text-gray-500 mb-2">Additional Contacts</p>
+                                    <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                                        {customer.additionalContacts.map((contact, index) => (
+                                            <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2 bg-white rounded shadow-sm border border-gray-100">
+                                                <span className="font-medium text-gray-900 flex-1">{contact.name}</span>
+                                                {contact.phone && (
+                                                    <div className="flex items-center divide-x divide-gray-200 border border-gray-200 rounded-lg overflow-hidden shrink-0">
+                                                        <a
+                                                            href={`tel:${contact.phone}`}
+                                                            className="flex items-center gap-1 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-700 transition-colors"
+                                                            title="Call"
+                                                        >
+                                                            <span>📞</span>
+                                                            <span className="text-sm font-medium">{formatPhone(contact.phone)}</span>
+                                                        </a>
+                                                        <a
+                                                            href={`https://wa.me/${formatPhoneForWhatsApp(contact.phone)}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="flex items-center gap-1 px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 transition-colors"
+                                                            title="Chat on WhatsApp"
+                                                        >
+                                                            <span className="text-sm font-medium">WhatsApp</span>
+                                                            <span>💬</span>
+                                                        </a>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Tax Registration Info */}
+                            {(customer.stRegNo || customer.ntnNo) && (
+                                <div className="pt-3 border-t border-gray-200">
+                                    <p className="text-xs text-gray-500 mb-2">Tax Information</p>
+                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                        {customer.stRegNo && (
+                                            <div>
+                                                <p className="text-gray-500">S.T. Reg. No.</p>
+                                                <p className="font-medium">{customer.stRegNo}</p>
+                                            </div>
+                                        )}
+                                        {customer.ntnNo && (
+                                            <div>
+                                                <p className="text-gray-500">NTN No.</p>
+                                                <p className="font-medium">{customer.ntnNo}</p>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             )}
 

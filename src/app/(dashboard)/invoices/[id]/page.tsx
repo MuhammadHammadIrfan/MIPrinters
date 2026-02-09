@@ -4,11 +4,11 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Header } from '@/components/layout';
-import { db, type LocalInvoice, type LocalInvoiceItem } from '@/lib/db';
+import { db, type LocalInvoice, type LocalInvoiceItem, type LocalPayment } from '@/lib/db';
 import { useCustomerStore } from '@/stores/customerStore';
 import { useInvoiceStore } from '@/stores/invoiceStore';
 import { formatCurrency, formatDate } from '@/lib/utils/formatters';
-import { runSync } from '@/lib/sync/syncService';
+import { runSync, pullFromCloud } from '@/lib/sync/syncService';
 import { useConfirmDialog, useToast } from '@/components/ui/DialogProvider';
 
 function StatusBadge({ status }: { status: string }) {
@@ -34,7 +34,9 @@ function PaymentModal({
     onPaymentRecorded: () => void;
 }) {
     const [amount, setAmount] = useState('');
-    const [method, setMethod] = useState<'cash' | 'bank' | 'other'>('cash');
+    const [method, setMethod] = useState<'cash' | 'bank' | 'cheque' | 'other'>('cash');
+    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [reference, setReference] = useState('');
     const [notes, setNotes] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -71,7 +73,8 @@ function PaymentModal({
                 invoiceLocalId: invoice.localId,
                 amount: paymentAmount,
                 paymentMethod: method,
-                paymentDate: now,
+                paymentDate: new Date(date).getTime(),
+                referenceNumber: reference || undefined,
                 notes: notes || undefined,
                 syncStatus: 'pending',
                 createdAt: now,
@@ -138,9 +141,20 @@ function PaymentModal({
                     </div>
 
                     <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Payment Date</label>
+                        <input
+                            type="date"
+                            value={date}
+                            onChange={(e) => setDate(e.target.value)}
+                            className="input"
+                            required
+                        />
+                    </div>
+
+                    <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
-                        <div className="flex gap-2">
-                            {(['cash', 'bank', 'other'] as const).map((m) => (
+                        <div className="flex gap-2 mb-3">
+                            {(['cash', 'bank', 'cheque', 'other'] as const).map((m) => (
                                 <button
                                     key={m}
                                     type="button"
@@ -154,16 +168,31 @@ function PaymentModal({
                                 </button>
                             ))}
                         </div>
+
+                        {(method === 'bank' || method === 'cheque') && (
+                            <div className="mb-3">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    {method === 'cheque' ? 'Cheque No' : 'Transaction Ref'}
+                                </label>
+                                <input
+                                    type="text"
+                                    value={reference}
+                                    onChange={(e) => setReference(e.target.value)}
+                                    placeholder={method === 'cheque' ? 'Enter cheque number' : 'Enter transaction ID'}
+                                    className="input"
+                                />
+                            </div>
+                        )}
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
-                        <input
-                            type="text"
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Note (Optional)</label>
+                        <textarea
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
-                            placeholder="Payment reference..."
-                            className="input"
+                            placeholder="Add payment notes..."
+                            className="input min-h-[80px]"
+                            rows={3}
                         />
                     </div>
 
@@ -192,8 +221,10 @@ export default function InvoiceDetailPage() {
 
     const [invoice, setInvoice] = useState<LocalInvoice | null>(null);
     const [items, setItems] = useState<LocalInvoiceItem[]>([]);
+    const [payments, setPayments] = useState<LocalPayment[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [customerName, setCustomerName] = useState<string>('Walk-in Customer');
+    const [selectedCustomer, setSelectedCustomer] = useState<(typeof customers)[number] | null>(null);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
@@ -225,6 +256,16 @@ export default function InvoiceDetailPage() {
                     setInvoice(inv);
                     const invItems = await db.invoiceItems.where('invoiceLocalId').equals(invoiceId).toArray();
                     setItems(invItems.sort((a, b) => a.position - b.position));
+
+                    const invPaymentsLocal = await db.payments.where('invoiceLocalId').equals(invoiceId).toArray();
+                    const invPaymentsServer = inv.id ? await db.payments.where('invoiceId').equals(inv.id).toArray() : [];
+
+                    // Merge and deduplicate by localId
+                    const allPaymentsMap = new Map<string, LocalPayment>();
+                    [...invPaymentsLocal, ...invPaymentsServer].forEach(p => allPaymentsMap.set(p.localId, p));
+                    const allPayments = Array.from(allPaymentsMap.values());
+
+                    setPayments(allPayments.sort((a, b) => b.paymentDate - a.paymentDate));
                 }
             } catch (error) {
                 console.error('Failed to load invoice:', error);
@@ -238,6 +279,31 @@ export default function InvoiceDetailPage() {
         }
     }, [invoiceId]);
 
+    // Sync on mount to get latest payments
+    useEffect(() => {
+        const syncData = async () => {
+            // Force pull from cloud to get latest payments
+            await pullFromCloud(true).catch(console.error);
+            // Reload invoice data from local DB after sync
+            if (hasLoadedRef.current) {
+                const inv = await db.invoices.get(invoiceId);
+                if (inv) {
+                    setInvoice(inv);
+                    const invPaymentsLocal = await db.payments.where('invoiceLocalId').equals(invoiceId).toArray();
+                    const invPaymentsServer = inv.id ? await db.payments.where('invoiceId').equals(inv.id).toArray() : [];
+
+                    // Merge and deduplicate by localId
+                    const allPaymentsMap = new Map<string, LocalPayment>();
+                    [...invPaymentsLocal, ...invPaymentsServer].forEach(p => allPaymentsMap.set(p.localId, p));
+                    const allPayments = Array.from(allPaymentsMap.values());
+
+                    setPayments(allPayments.sort((a, b) => b.paymentDate - a.paymentDate));
+                }
+            }
+        };
+        syncData();
+    }, [invoiceId]);
+
     // Get customer name
     useEffect(() => {
         if (invoice?.customerId && customers.length > 0) {
@@ -245,10 +311,16 @@ export default function InvoiceDetailPage() {
             const customer = customers.find(c => c.localId === invoice.customerId || c.id === invoice.customerId);
             if (customer) {
                 setCustomerName(customer.company ? `${customer.name} (${customer.company})` : customer.name);
+                setSelectedCustomer(customer);
+            } else {
+                setSelectedCustomer(null);
             }
         } else if (invoice?.walkInCustomerName) {
             // Use walk-in customer name if no registered customer
             setCustomerName(invoice.walkInCustomerName);
+            setSelectedCustomer(null);
+        } else {
+            setSelectedCustomer(null);
         }
     }, [invoice, customers]);
 
@@ -256,6 +328,15 @@ export default function InvoiceDetailPage() {
         const inv = await db.invoices.get(invoiceId);
         if (inv) {
             setInvoice(inv);
+            const invPaymentsLocal = await db.payments.where('invoiceLocalId').equals(invoiceId).toArray();
+            const invPaymentsServer = inv.id ? await db.payments.where('invoiceId').equals(inv.id).toArray() : [];
+
+            // Merge and deduplicate by localId
+            const allPaymentsMap = new Map<string, LocalPayment>();
+            [...invPaymentsLocal, ...invPaymentsServer].forEach(p => allPaymentsMap.set(p.localId, p));
+            const allPayments = Array.from(allPaymentsMap.values());
+
+            setPayments(allPayments.sort((a, b) => b.paymentDate - a.paymentDate));
         }
     };
 
@@ -341,17 +422,54 @@ export default function InvoiceDetailPage() {
             }
 
             const customColumns = invoice.customColumns || [];
+            const isTypeB = invoice.invoiceType === 'B';
 
-            const itemsHtml = items.map((item, i) => `
-        <tr>
-          <td style="padding: 8px; border-bottom: 1px solid #eee;">${i + 1}</td>
-          <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.description}</td>
-          <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${item.quantity}</td>
-          <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">Rs. ${item.rate.toLocaleString()}</td>
-          ${customColumns.map(col => `<td style="padding: 8px; border-bottom: 1px solid #eee;">${item.customValues?.[col.id] || '-'}</td>`).join('')}
-          <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold;">Rs. ${item.amount.toLocaleString()}</td>
-        </tr>
-      `).join('');
+            // For Type B, include extra columns in header and items
+            const typeBHeaderCols = isTypeB ? `
+                <th style="width: 70px; text-align: right;">Weight</th>
+                <th style="width: 90px; text-align: right;">Excl. Tax</th>
+                <th style="width: 60px; text-align: right;">Tax %</th>
+                <th style="width: 80px; text-align: right;">Tax Amt</th>
+                <th style="width: 90px; text-align: right;">Incl. Tax</th>
+            ` : '';
+
+            const itemsHtml = items.map((item, i) => {
+                const typeBItemCols = isTypeB ? `
+                    <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${item.weight || '-'}</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${item.valueExclTax ? `Rs. ${item.valueExclTax.toLocaleString()}` : '-'}</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${item.salesTaxPercent ? `${item.salesTaxPercent}%` : '-'}</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${item.totalSalesTax ? `Rs. ${item.totalSalesTax.toLocaleString()}` : '-'}</td>
+                    <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${item.valueInclTax ? `Rs. ${item.valueInclTax.toLocaleString()}` : '-'}</td>
+                ` : '';
+
+                return `
+                <tr>
+                  <td style="padding: 8px; border-bottom: 1px solid #eee;">${i + 1}</td>
+                  <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.description}</td>
+                  <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${item.quantity}</td>
+                  <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">Rs. ${item.rate.toLocaleString()}</td>
+                  ${customColumns.map(col => `<td style="padding: 8px; border-bottom: 1px solid #eee;">${item.customValues?.[col.id] || '-'}</td>`).join('')}
+                  ${typeBItemCols}
+                  <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold;">Rs. ${item.amount.toLocaleString()}</td>
+                </tr>
+              `;
+            }).join('');
+
+            // Owner tax info for Type B
+            const ownerTaxInfo = isTypeB && (settings.stRegNo || settings.ntnNo) ? `
+                <div style="font-size: 11px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee;">
+                    ${settings.stRegNo ? `<div>S.T. Reg. No: ${settings.stRegNo}</div>` : ''}
+                    ${settings.ntnNo ? `<div>NTN No: ${settings.ntnNo}</div>` : ''}
+                </div>
+            ` : '';
+
+            // Customer tax info for Type B
+            const customerTaxInfo = isTypeB && selectedCustomer && (selectedCustomer.stRegNo || selectedCustomer.ntnNo) ? `
+                <div style="font-size: 11px; margin-top: 4px; color: #666;">
+                    ${selectedCustomer.stRegNo ? `<div>S.T. Reg. No: ${selectedCustomer.stRegNo}</div>` : ''}
+                    ${selectedCustomer.ntnNo ? `<div>NTN No: ${selectedCustomer.ntnNo}</div>` : ''}
+                </div>
+            ` : '';
 
             pdfWindow.document.write(`
         <!DOCTYPE html>
@@ -365,6 +483,8 @@ export default function InvoiceDetailPage() {
             .business-info { font-size: 12px; color: #666; margin-top: 4px; line-height: 1.4; }
             .invoice-title { font-size: 28px; color: #666; }
             .invoice-number { font-size: 18px; color: #16a34a; font-weight: bold; }
+            .original-badge { font-size: 14px; color: #9ca3af; margin-top: 8px; letter-spacing: 2px; }
+            .type-badge { font-size: 10px; background: ${isTypeB ? '#3b82f6' : '#16a34a'}; color: white; padding: 2px 8px; border-radius: 4px; margin-top: 4px; display: inline-block; }
             .section { margin-bottom: 20px; }
             .label { color: #666; font-size: 12px; }
             .value { font-weight: 500; }
@@ -383,13 +503,15 @@ export default function InvoiceDetailPage() {
               <div class="logo">${settings.businessName}</div>
               <div class="business-info">
                 ${settings.address ? `<div>${settings.address}</div>` : ''}
-                ${settings.phone ? `<div>Phone: ${settings.phone}</div>` : ''}
                 ${settings.email ? `<div>Email: ${settings.email}</div>` : ''}
               </div>
+              ${ownerTaxInfo}
             </div>
             <div style="text-align: right;">
               <div class="invoice-title">INVOICE</div>
               <div class="invoice-number">${invoice.invoiceNumber}</div>
+              <div class="original-badge">ORIGINAL</div>
+              <div class="type-badge">${isTypeB ? 'TAX INVOICE' : 'STANDARD'}</div>
             </div>
           </div>
 
@@ -397,6 +519,7 @@ export default function InvoiceDetailPage() {
             <div class="section">
               <div class="label">Bill To</div>
               <div class="value" style="font-size: 16px;">${customerName}</div>
+              ${customerTaxInfo}
             </div>
             <div class="section" style="text-align: right;">
               <div><span class="label">Date:</span> ${formatDate(new Date(invoice.invoiceDate))}</div>
@@ -412,6 +535,7 @@ export default function InvoiceDetailPage() {
                 <th style="width: 80px; text-align: right;">Qty</th>
                 <th style="width: 100px; text-align: right;">Rate</th>
                 ${customColumns.map(col => `<th style="text-align: left;">${col.label}</th>`).join('')}
+                ${typeBHeaderCols}
                 <th style="width: 120px; text-align: right;">Amount</th>
               </tr>
             </thead>
@@ -438,18 +562,8 @@ export default function InvoiceDetailPage() {
           ${invoice.notes ? `<div class="footer"><strong>Notes:</strong> ${invoice.notes}</div>` : ''}
 
           <div class="footer">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-              <div>
-                <strong>Payment Info:</strong><br>
-                ${settings.bankName ? `Bank: ${settings.bankName}<br>` : ''}
-                ${settings.accountTitle ? `Title: ${settings.accountTitle}<br>` : ''}
-                ${settings.accountNumber ? `Account: ${settings.accountNumber}<br>` : ''}
-                ${settings.iban ? `IBAN: ${settings.iban}` : ''}
-                ${!settings.bankName && !settings.accountNumber ? 'Cash payment accepted.' : ''}
-              </div>
-              <div style="text-align: right;">
-                Thank you for your business!
-              </div>
+            <div style="text-align: center;">
+              Thank you for your business!
             </div>
           </div>
 
@@ -666,6 +780,38 @@ export default function InvoiceDetailPage() {
                         </div>
                     </div>
                 </div>
+
+                {/* Payment History */}
+                {payments.length > 0 && (
+                    <div className="card mb-4">
+                        <h3 className="font-semibold text-gray-900 mb-3">Payment History</h3>
+                        <div className="space-y-3">
+                            {payments.map((payment) => (
+                                <div key={payment.localId} className="flex flex-col gap-1 pb-3 border-b border-gray-100 last:border-0 last:pb-0">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <span className="font-medium text-gray-900 block">
+                                                {formatDate(new Date(payment.paymentDate))}
+                                            </span>
+                                            <span className="text-xs text-gray-500 capitalize">
+                                                {payment.paymentMethod}
+                                                {payment.referenceNumber && ` • Ref: ${payment.referenceNumber}`}
+                                            </span>
+                                        </div>
+                                        <span className="font-medium text-green-600">
+                                            {formatCurrency(payment.amount)}
+                                        </span>
+                                    </div>
+                                    {payment.notes && (
+                                        <p className="text-xs text-gray-500 bg-gray-50 p-2 rounded whitespace-pre-wrap">
+                                            {payment.notes}
+                                        </p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Internal Info (Owner only) */}
                 <div className="card bg-gray-50 border-dashed">

@@ -16,7 +16,11 @@ export default function NewCustomerPage() {
         address: '',
         city: '',
         notes: '',
+        stRegNo: '',
+        ntnNo: '',
     });
+
+    const [additionalContacts, setAdditionalContacts] = useState<{ name: string; phone: string }[]>([]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -34,7 +38,10 @@ export default function NewCustomerPage() {
                 address: form.address.trim() || undefined,
                 city: form.city.trim() || undefined,
                 notes: form.notes.trim() || undefined,
+                stRegNo: form.stRegNo.trim() || undefined,
+                ntnNo: form.ntnNo.trim() || undefined,
                 isActive: true,
+                additionalContacts: additionalContacts.filter(c => c.name.trim() || c.phone.trim()),
                 syncStatus: 'pending',
                 createdAt: now,
                 updatedAt: now,
@@ -98,7 +105,7 @@ export default function NewCustomerPage() {
                                     type="tel"
                                     value={form.phone}
                                     onChange={(e) => updateField('phone', e.target.value)}
-                                    placeholder="03XX-XXXXXXX"
+                                    placeholder="Primary phone number"
                                     className="input"
                                 />
                             </div>
@@ -108,9 +115,69 @@ export default function NewCustomerPage() {
                                     type="email"
                                     value={form.email}
                                     onChange={(e) => updateField('email', e.target.value)}
-                                    placeholder="email@example.com"
+                                    placeholder="Email address"
                                     className="input"
                                 />
+                            </div>
+                        </div>
+
+                        {/* Additional Contacts Section */}
+                        <div className="border-t pt-4 mt-4">
+                            <div className="flex justify-between items-center mb-2">
+                                <label className="block text-sm font-medium text-gray-700">Additional Contacts</label>
+                                <button
+                                    type="button"
+                                    onClick={() => setAdditionalContacts([...additionalContacts, { name: '', phone: '' }])}
+                                    className="text-sm text-primary hover:text-primary-dark"
+                                >
+                                    + Add Contact
+                                </button>
+                            </div>
+
+                            <div className="space-y-3">
+                                {additionalContacts.map((contact, index) => (
+                                    <div key={index} className="flex gap-2 items-start">
+                                        <div className="flex-1">
+                                            <input
+                                                type="text"
+                                                value={contact.name}
+                                                onChange={(e) => {
+                                                    const newContacts = [...additionalContacts];
+                                                    newContacts[index].name = e.target.value;
+                                                    setAdditionalContacts(newContacts);
+                                                }}
+                                                placeholder="Contact Name"
+                                                className="input text-sm"
+                                            />
+                                        </div>
+                                        <div className="flex-1">
+                                            <input
+                                                type="tel"
+                                                value={contact.phone}
+                                                onChange={(e) => {
+                                                    const newContacts = [...additionalContacts];
+                                                    newContacts[index].phone = e.target.value;
+                                                    setAdditionalContacts(newContacts);
+                                                }}
+                                                placeholder="Phone Number"
+                                                className="input text-sm"
+                                            />
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const newContacts = additionalContacts.filter((_, i) => i !== index);
+                                                setAdditionalContacts(newContacts);
+                                            }}
+                                            className="p-2 text-gray-400 hover:text-red-500"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+                                ))}
+                                {additionalContacts.length === 0 && (
+                                    <p className="text-sm text-gray-500 italic">No additional contacts added.</p>
+                                )}
                             </div>
                         </div>
 
@@ -145,6 +212,33 @@ export default function NewCustomerPage() {
                                 rows={3}
                                 className="input"
                             />
+                        </div>
+
+                        {/* Tax Registration Fields */}
+                        <div className="border-t pt-4 mt-4">
+                            <h4 className="text-sm font-medium text-gray-700 mb-3">Tax Information (for Tax Invoices)</h4>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">S.T. Reg. No.</label>
+                                    <input
+                                        type="text"
+                                        value={form.stRegNo}
+                                        onChange={(e) => updateField('stRegNo', e.target.value)}
+                                        placeholder="Sales Tax Registration Number"
+                                        className="input"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">NTN No.</label>
+                                    <input
+                                        type="text"
+                                        value={form.ntnNo}
+                                        onChange={(e) => updateField('ntnNo', e.target.value)}
+                                        placeholder="National Tax Number"
+                                        className="input"
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

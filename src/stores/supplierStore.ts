@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { db, generateLocalId, type LocalSupplier } from '@/lib/db';
+import { pullFromCloud } from '@/lib/sync/syncService';
 
 interface SupplierState {
     suppliers: LocalSupplier[];
@@ -32,6 +33,9 @@ export const useSupplierStore = create<SupplierState>((set, get) => ({
             const allSuppliers = await db.suppliers.toArray();
             const suppliers = allSuppliers.filter(s => s.isActive !== false);
             set({ suppliers, isLoading: false, isInitialized: true });
+
+            // Trigger background sync
+            pullFromCloud().catch(err => console.error('Background sync failed:', err));
         } catch (error) {
             console.error('Failed to load suppliers:', error);
             set({ error: 'Failed to load suppliers', isLoading: false, isInitialized: true });

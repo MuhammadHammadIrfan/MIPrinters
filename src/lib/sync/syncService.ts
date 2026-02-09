@@ -28,8 +28,8 @@ export function getSyncState(): SyncState {
 // PULL FROM CLOUD - Fetch data from Supabase into IndexedDB
 // This runs once when app loads to ensure device has latest data
 // ============================================
-export async function pullFromCloud(): Promise<void> {
-    if (hasPulledFromCloud) {
+export async function pullFromCloud(force = false): Promise<void> {
+    if (hasPulledFromCloud && !force) {
         console.log('Already pulled from cloud');
         return;
     }
@@ -76,7 +76,10 @@ export async function pullFromCloud(): Promise<void> {
                             address: cloudCust.address || undefined,
                             city: cloudCust.city || undefined,
                             notes: cloudCust.notes || undefined,
+                            stRegNo: cloudCust.st_reg_no || undefined,
+                            ntnNo: cloudCust.ntn_no || undefined,
                             isActive: cloudCust.is_active,
+                            additionalContacts: cloudCust.additional_contacts || [],
                             syncStatus: 'synced',
                             updatedAt: new Date(cloudCust.updated_at).getTime(),
                         });
@@ -94,7 +97,10 @@ export async function pullFromCloud(): Promise<void> {
                         address: cloudCust.address || undefined,
                         city: cloudCust.city || undefined,
                         notes: cloudCust.notes || undefined,
+                        stRegNo: cloudCust.st_reg_no || undefined,
+                        ntnNo: cloudCust.ntn_no || undefined,
                         isActive: cloudCust.is_active,
+                        additionalContacts: cloudCust.additional_contacts || [],
                         syncStatus: 'synced',
                         createdAt: new Date(cloudCust.created_at).getTime(),
                         updatedAt: new Date(cloudCust.updated_at).getTime(),
@@ -112,6 +118,7 @@ export async function pullFromCloud(): Promise<void> {
 
         if (invoicesError) {
             console.error('Failed to pull invoices:', invoicesError.message);
+
         } else if (cloudInvoices && cloudInvoices.length > 0) {
             console.log(`Pulled ${cloudInvoices.length} invoices from cloud`);
 
@@ -127,6 +134,7 @@ export async function pullFromCloud(): Promise<void> {
                         await db.invoices.update(existing.localId, {
                             id: cloudInv.id,
                             invoiceNumber: cloudInv.invoice_number,
+                            invoiceType: cloudInv.invoice_type || 'A',
                             customerId: cloudInv.customer_id || undefined,
                             walkInCustomerName: cloudInv.walk_in_customer_name || undefined,
                             invoiceDate: new Date(cloudInv.invoice_date).getTime(),
@@ -159,6 +167,7 @@ export async function pullFromCloud(): Promise<void> {
                         localId,
                         id: cloudInv.id,
                         invoiceNumber: cloudInv.invoice_number,
+                        invoiceType: cloudInv.invoice_type || 'A',
                         customerId: cloudInv.customer_id || undefined,
                         walkInCustomerName: cloudInv.walk_in_customer_name || undefined,
                         invoiceDate: new Date(cloudInv.invoice_date).getTime(),
@@ -213,6 +222,12 @@ export async function pullFromCloud(): Promise<void> {
                                     itemMargin: item.item_margin || 0,
                                     supplierId: item.supplier_id || undefined,
                                     customValues: item.custom_values || {},
+                                    // Type B fields
+                                    weight: item.weight || undefined,
+                                    valueExclTax: item.value_excl_tax || undefined,
+                                    salesTaxPercent: item.sales_tax_percent || undefined,
+                                    totalSalesTax: item.total_sales_tax || undefined,
+                                    valueInclTax: item.value_incl_tax || undefined,
                                     createdAt: Date.now(),
                                 });
                             }
@@ -226,7 +241,7 @@ export async function pullFromCloud(): Promise<void> {
         const { data: cloudSuppliers, error: suppliersError } = await supabase
             .from('suppliers')
             .select('*')
-            .or('is_active.is.null,is_active.eq.true')
+            // .or('is_active.is.null,is_active.eq.true') // Simplify query to avoid syntax issues
             .order('created_at', { ascending: false });
 
         if (suppliersError) {
@@ -272,8 +287,70 @@ export async function pullFromCloud(): Promise<void> {
             }
         }
 
+        // Pull payments
+        const { data: cloudPayments, error: paymentsError } = await supabase
+            .from('payments')
+            .select('*')
+            .order('payment_date', { ascending: false });
+
+        if (paymentsError) {
+            console.error('Failed to pull payments:', paymentsError.message);
+        } else if (cloudPayments && cloudPayments.length > 0) {
+            for (const cloudPay of cloudPayments) {
+                const existingById = await db.payments.filter(p => p.id === cloudPay.id).first();
+                const existingByLocalId = cloudPay.local_id
+                    ? await db.payments.get(cloudPay.local_id)
+                    : null;
+
+                // Find the correct local invoice using the cloud UUID
+                let targetInvoiceLocalId: string | undefined = undefined;
+
+                if (cloudPay.invoice_id) {
+                    const linkedInvoice = await db.invoices.filter(i => i.id === cloudPay.invoice_id).first();
+                    if (linkedInvoice) {
+                        targetInvoiceLocalId = linkedInvoice.localId;
+                    } else {
+                        continue; // Skip this payment if its invoice isn't synced yet
+                    }
+                } else {
+                    continue;
+                }
+
+                if (existingById || existingByLocalId) {
+                    const existing = existingById || existingByLocalId;
+                    if (existing && existing.syncStatus !== 'pending') {
+                        await db.payments.update(existing.localId, {
+                            id: cloudPay.id,
+                            invoiceId: cloudPay.invoice_id,
+                            invoiceLocalId: targetInvoiceLocalId,
+                            amount: cloudPay.amount,
+                            paymentDate: new Date(cloudPay.payment_date).getTime(),
+                            paymentMethod: cloudPay.payment_method,
+                            referenceNumber: cloudPay.reference_number || undefined,
+                            notes: cloudPay.notes || undefined,
+                            syncStatus: 'synced',
+                        });
+                    }
+                } else {
+                    const localId = cloudPay.local_id || `pay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                    await db.payments.add({
+                        localId,
+                        id: cloudPay.id,
+                        invoiceId: cloudPay.invoice_id,
+                        invoiceLocalId: targetInvoiceLocalId,
+                        amount: cloudPay.amount,
+                        paymentDate: new Date(cloudPay.payment_date).getTime(),
+                        paymentMethod: cloudPay.payment_method,
+                        referenceNumber: cloudPay.reference_number || undefined,
+                        notes: cloudPay.notes || undefined,
+                        syncStatus: 'synced',
+                        createdAt: new Date(cloudPay.created_at).getTime(),
+                    });
+                }
+            }
+        }
+
         hasPulledFromCloud = true;
-        console.log('Cloud pull completed successfully');
     } catch (error) {
         console.error('Failed to pull from cloud:', error);
     }
@@ -301,7 +378,10 @@ async function syncCustomers() {
                 p_address: customer.address || null,
                 p_city: customer.city || null,
                 p_notes: customer.notes || null,
+                p_st_reg_no: customer.stRegNo || null,
+                p_ntn_no: customer.ntnNo || null,
                 p_is_active: customer.isActive !== false,
+                p_additional_contacts: customer.additionalContacts || [],
             });
 
             if (error) {
@@ -343,6 +423,7 @@ async function syncInvoices() {
             const { data, error } = await supabase.rpc('sync_invoice', {
                 p_local_id: invoice.localId,
                 p_invoice_number: invoice.invoiceNumber,
+                p_invoice_type: invoice.invoiceType || 'A',
                 p_customer_id: customerId,
                 p_walk_in_customer_name: invoice.walkInCustomerName || null,
                 p_invoice_date: new Date(invoice.invoiceDate).toISOString().split('T')[0],
@@ -403,6 +484,12 @@ async function syncInvoices() {
                     supplier_id: null,
                     local_id: item.localId,
                     custom_values: item.customValues || {},
+                    // Type B fields
+                    weight: item.weight || null,
+                    value_excl_tax: item.valueExclTax || null,
+                    sales_tax_percent: item.salesTaxPercent || null,
+                    total_sales_tax: item.totalSalesTax || null,
+                    value_incl_tax: item.valueInclTax || null,
                 }));
 
                 const { error: itemsError } = await supabase
@@ -458,6 +545,46 @@ async function syncSuppliers() {
     }
 }
 
+async function syncPayments() {
+    const supabase = createClient();
+    const pendingPayments = await db.payments
+        .filter(p => p.syncStatus === 'pending')
+        .toArray();
+
+    if (pendingPayments.length > 0) {
+        console.log(`Syncing ${pendingPayments.length} pending payments...`);
+
+        for (const payment of pendingPayments) {
+            try {
+                const { data, error } = await supabase.rpc('sync_payment', {
+                    p_local_id: payment.localId,
+                    p_invoice_local_id: payment.invoiceLocalId,
+                    p_amount: payment.amount,
+                    p_payment_date: new Date(payment.paymentDate).toISOString(),
+                    p_payment_method: payment.paymentMethod,
+                    p_reference_number: payment.referenceNumber || null,
+                    p_notes: payment.notes || null,
+                    p_invoice_id: payment.invoiceId || null, // Pass UUID if available
+                });
+
+                if (error) {
+                    console.error('Sync payment error:', error.message);
+                    continue;
+                }
+
+                await db.payments.update(payment.localId, {
+                    id: data,
+                    syncStatus: 'synced',
+                });
+
+                console.log(`Synced payment: ${payment.localId}`);
+            } catch (err) {
+                console.error('Failed to sync payment:', payment.localId, err);
+            }
+        }
+    }
+}
+
 // Main sync function - both pull and push
 export async function runSync(): Promise<void> {
     if (syncState.status === 'syncing') {
@@ -480,6 +607,7 @@ export async function runSync(): Promise<void> {
         await syncCustomers();
         await syncSuppliers();
         await syncInvoices();
+        await syncPayments();
 
         syncState = {
             status: 'idle',

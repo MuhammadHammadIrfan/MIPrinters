@@ -110,7 +110,11 @@ export default function SuppliersPage() {
                 {isInitialized && filteredSuppliers.length > 0 && (
                     <div className="space-y-3">
                         {filteredSuppliers.map((supplier) => {
-                            const type = SUPPLIER_TYPES[supplier.supplierType || 'other'] || SUPPLIER_TYPES.other;
+                            const typeKey = supplier.supplierType || 'other';
+                            const type = SUPPLIER_TYPES[typeKey] || {
+                                label: typeKey,
+                                emoji: '🏢'
+                            };
                             return (
                                 <Link
                                     key={supplier.localId}

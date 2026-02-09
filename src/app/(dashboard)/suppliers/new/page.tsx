@@ -23,9 +23,11 @@ export default function NewSupplierPage() {
     const [formData, setFormData] = useState({
         name: '',
         phone: '',
-        supplierType: 'other' as 'offset' | 'digital' | 'binding' | 'flexo' | 'screen' | 'other',
+        supplierType: 'offset', // Default to a valid type
         notes: '',
     });
+    const [customType, setCustomType] = useState('');
+    const [isCustom, setIsCustom] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -97,22 +99,47 @@ export default function NewSupplierPage() {
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                             Supplier Type
                         </label>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                            {SUPPLIER_TYPES.map((type) => (
-                                <button
-                                    key={type.value}
-                                    type="button"
-                                    onClick={() => setFormData({ ...formData, supplierType: type.value as typeof formData.supplierType })}
-                                    className={`p-3 rounded-lg border text-sm font-medium transition-colors text-left
-                    ${formData.supplierType === type.value
-                                            ? 'bg-green-600 text-white border-green-600'
-                                            : 'bg-white text-gray-700 border-gray-200 hover:bg-green-50'}`}
-                                >
-                                    <span className="text-lg mr-2">{type.emoji}</span>
-                                    {type.label}
-                                </button>
-                            ))}
+                        <div className="flex flex-wrap gap-2 mb-3">
+                            {SUPPLIER_TYPES.map((type) => {
+                                const isSelected = isCustom ? type.value === 'other' : formData.supplierType === type.value;
+                                return (
+                                    <button
+                                        key={type.value}
+                                        type="button"
+                                        onClick={() => {
+                                            if (type.value === 'other') {
+                                                setIsCustom(true);
+                                                // Don't change supplierType yet, keeps previous or empty
+                                            } else {
+                                                setIsCustom(false);
+                                                setFormData({ ...formData, supplierType: type.value });
+                                            }
+                                        }}
+                                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors border
+                                    ${isSelected
+                                                ? 'bg-green-100 text-green-800 border-green-200'
+                                                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                                    >
+                                        <span className="mr-1.5">{type.emoji}</span>
+                                        {type.label}
+                                    </button>
+                                );
+                            })}
                         </div>
+
+                        {isCustom && (
+                            <input
+                                type="text"
+                                value={customType}
+                                onChange={(e) => {
+                                    setCustomType(e.target.value);
+                                    setFormData({ ...formData, supplierType: e.target.value });
+                                }}
+                                placeholder="Enter custom supplier type..."
+                                className="input"
+                                autoFocus
+                            />
+                        )}
                     </div>
 
                     <div>

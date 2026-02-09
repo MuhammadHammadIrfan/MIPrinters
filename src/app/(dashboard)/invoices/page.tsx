@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Header } from '@/components/layout';
 import { formatCurrency, formatDate } from '@/lib/utils/formatters';
@@ -19,6 +19,7 @@ function StatusBadge({ status }: { status: string }) {
 export default function InvoicesPage() {
     // Use ref to track if we've already attempted loading
     const hasAttemptedLoad = useRef(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const invoices = useInvoiceStore((state) => state.invoices);
     const isLoading = useInvoiceStore((state) => state.isLoading);
@@ -40,7 +41,22 @@ export default function InvoicesPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const filteredInvoices = getFilteredInvoices();
+    const allInvoices = getFilteredInvoices();
+
+    // Filter by search query
+    const filteredInvoices = allInvoices.filter(invoice => {
+        if (!searchQuery.trim()) return true;
+
+        const query = searchQuery.toLowerCase();
+        const customerName = invoice.customerName?.toLowerCase() || '';
+        const walkInName = invoice.walkInCustomerName?.toLowerCase() || '';
+        const invoiceNum = invoice.invoiceNumber.toLowerCase();
+
+        return customerName.includes(query) ||
+            walkInName.includes(query) ||
+            invoiceNum.includes(query);
+    });
+
     const filters: Array<'all' | 'unpaid' | 'partial' | 'paid' | 'draft'> = ['all', 'unpaid', 'partial', 'paid', 'draft'];
 
     return (
@@ -57,6 +73,19 @@ export default function InvoicesPage() {
             />
 
             <div className="p-4 lg:p-6">
+                {/* Search Bar */}
+                <div className="mb-4">
+                    <div className="relative">
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search by customer name or invoice #..."
+                            className="input pl-10"
+                        />
+                    </div>
+                </div>
+
                 {/* Filter tabs */}
                 <div className="flex gap-2 mb-4 overflow-x-auto pb-2 -mx-4 px-4">
                     {filters.map((filter) => (

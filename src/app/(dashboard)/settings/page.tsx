@@ -17,8 +17,12 @@ interface BusinessSettings {
     iban: string;
     invoicePrefix: string;
     nextInvoiceNumber: number;
+    nextInvoiceNumberB: number; // Separate counter for Type B invoices
     defaultPaymentTerms: number;
     defaultTaxRate: number;
+    // Owner tax registration fields
+    stRegNo: string;
+    ntnNo: string;
 }
 
 const DEFAULT_SETTINGS: BusinessSettings = {
@@ -32,8 +36,11 @@ const DEFAULT_SETTINGS: BusinessSettings = {
     iban: '',
     invoicePrefix: 'INV',
     nextInvoiceNumber: 1,
+    nextInvoiceNumberB: 1,
     defaultPaymentTerms: 30,
     defaultTaxRate: 0,
+    stRegNo: '',
+    ntnNo: '',
 };
 
 export default function SettingsPage() {
@@ -146,8 +153,11 @@ export default function SettingsPage() {
                         iban: data.iban || '',
                         invoicePrefix: data.invoice_prefix || 'INV',
                         nextInvoiceNumber: data.next_invoice_number || 1,
+                        nextInvoiceNumberB: data.next_invoice_number_b || 1,
                         defaultPaymentTerms: data.default_payment_terms || 7,
                         defaultTaxRate: data.default_tax_rate || 0,
+                        stRegNo: data.st_reg_no || '',
+                        ntnNo: data.ntn_no || '',
                     };
 
                     setSettings(cloudSettings);
@@ -199,8 +209,11 @@ export default function SettingsPage() {
                     iban: settings.iban,
                     invoice_prefix: settings.invoicePrefix,
                     next_invoice_number: settings.nextInvoiceNumber,
+                    next_invoice_number_b: settings.nextInvoiceNumberB,
                     default_payment_terms: settings.defaultPaymentTerms,
                     default_tax_rate: settings.defaultTaxRate,
+                    st_reg_no: settings.stRegNo,
+                    ntn_no: settings.ntnNo,
                     updated_at: new Date().toISOString(),
                 };
                 console.log('📤 [Settings] Payload:', payload);
@@ -334,11 +347,11 @@ export default function SettingsPage() {
                     </div>
                 </div>
 
-                {/* Bank Details (for PDF) */}
+                {/* Bank Details */}
                 <div className="card">
-                    <h3 className="font-semibold text-gray-900 mb-4">Bank Details (shown on Invoice PDF)</h3>
+                    <h3 className="font-semibold text-gray-900 mb-4">Bank Details</h3>
                     <p className="text-sm text-gray-500 mb-4">
-                        Add your bank details to display on invoices for customer payments.
+                        Store your bank details for reference and record keeping.
                     </p>
                     <div className="space-y-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -386,10 +399,40 @@ export default function SettingsPage() {
                             </div>
                         </div>
                     </div>
-                </div>
+                </div >
+
+                {/* Tax Registration (for Type B Invoices) */}
+                < div className="card" >
+                    <h3 className="font-semibold text-gray-900 mb-4">Tax Registration (for Tax Invoices)</h3>
+                    <p className="text-sm text-gray-500 mb-4">
+                        Your tax registration details will appear on Type B (Tax Invoice) documents.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">S.T. Reg. No.</label>
+                            <input
+                                type="text"
+                                value={settings.stRegNo}
+                                onChange={(e) => setSettings({ ...settings, stRegNo: e.target.value })}
+                                placeholder="Sales Tax Registration Number"
+                                className="input"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">NTN No.</label>
+                            <input
+                                type="text"
+                                value={settings.ntnNo}
+                                onChange={(e) => setSettings({ ...settings, ntnNo: e.target.value })}
+                                placeholder="National Tax Number"
+                                className="input"
+                            />
+                        </div>
+                    </div>
+                </div >
 
                 {/* Invoice Settings */}
-                <div className="card">
+                < div className="card" >
                     <h3 className="font-semibold text-gray-900 mb-4">Invoice Settings</h3>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -496,16 +539,16 @@ export default function SettingsPage() {
                             </div>
                         </div>
                     </div>
-                </div>
+                </div >
 
                 {/* Save Settings Button */}
-                <button
+                < button
                     onClick={handleSaveSettings}
                     disabled={isSaving}
                     className="btn-primary w-full"
                 >
                     {isSaving ? 'Saving...' : saveSuccess ? '✓ Saved!' : 'Save Settings'}
-                </button>
+                </button >
 
                 <div className="border-t border-gray-200 my-6" />
 
@@ -610,7 +653,7 @@ export default function SettingsPage() {
                         </button>
                     </form>
                 </div>
-            </div>
+            </div >
         </>
     );
 }

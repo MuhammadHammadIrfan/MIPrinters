@@ -48,9 +48,11 @@ export default function SupplierDetailPage() {
     const [formData, setFormData] = useState({
         name: '',
         phone: '',
-        supplierType: 'other' as 'offset' | 'digital' | 'binding' | 'flexo' | 'screen' | 'other',
+        supplierType: 'offset',
         notes: '',
     });
+    const [customType, setCustomType] = useState('');
+    const [isCustom, setIsCustom] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
@@ -60,12 +62,21 @@ export default function SupplierDetailPage() {
                 const sup = await db.suppliers.get(supplierId);
                 if (sup) {
                     setSupplier(sup);
+                    const isPredefined = SUPPLIER_TYPES.some(t => t.value === sup.supplierType);
                     setFormData({
                         name: sup.name,
                         phone: sup.phone || '',
-                        supplierType: sup.supplierType || 'other',
+                        supplierType: sup.supplierType || 'offset',
                         notes: sup.notes || '',
                     });
+
+                    if (!isPredefined && sup.supplierType) {
+                        setIsCustom(true);
+                        setCustomType(sup.supplierType);
+                    } else {
+                        setIsCustom(false);
+                        setCustomType('');
+                    }
                 }
             } catch (error) {
                 console.error('Failed to load supplier:', error);
@@ -149,7 +160,12 @@ export default function SupplierDetailPage() {
         );
     }
 
-    const typeInfo = SUPPLIER_TYPES.find(t => t.value === supplier.supplierType) || SUPPLIER_TYPES[5];
+    const predefinedType = SUPPLIER_TYPES.find(t => t.value === supplier.supplierType);
+    const typeInfo = predefinedType || {
+        value: supplier.supplierType || 'other',
+        label: supplier.supplierType || 'Other',
+        emoji: '🏢' // Default emoji for custom types
+    };
 
     return (
         <>
@@ -261,22 +277,46 @@ export default function SupplierDetailPage() {
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Supplier Type
                             </label>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                {SUPPLIER_TYPES.map((type) => (
-                                    <button
-                                        key={type.value}
-                                        type="button"
-                                        onClick={() => setFormData({ ...formData, supplierType: type.value as typeof formData.supplierType })}
-                                        className={`p-3 rounded-lg border text-sm font-medium transition-colors text-left
-                      ${formData.supplierType === type.value
-                                                ? 'bg-green-600 text-white border-green-600'
-                                                : 'bg-white text-gray-700 border-gray-200 hover:bg-green-50'}`}
-                                    >
-                                        <span className="text-lg mr-2">{type.emoji}</span>
-                                        {type.label}
-                                    </button>
-                                ))}
+                            <div className="flex flex-wrap gap-2 mb-3">
+                                {SUPPLIER_TYPES.map((type) => {
+                                    const isSelected = isCustom ? type.value === 'other' : formData.supplierType === type.value;
+                                    return (
+                                        <button
+                                            key={type.value}
+                                            type="button"
+                                            onClick={() => {
+                                                if (type.value === 'other') {
+                                                    setIsCustom(true);
+                                                } else {
+                                                    setIsCustom(false);
+                                                    setFormData({ ...formData, supplierType: type.value });
+                                                }
+                                            }}
+                                            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors border
+                                    ${isSelected
+                                                    ? 'bg-green-100 text-green-800 border-green-200'
+                                                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+                                        >
+                                            <span className="mr-1.5">{type.emoji}</span>
+                                            {type.label}
+                                        </button>
+                                    );
+                                })}
                             </div>
+
+                            {isCustom && (
+                                <input
+                                    type="text"
+                                    value={customType}
+                                    onChange={(e) => {
+                                        setCustomType(e.target.value);
+                                        setFormData({ ...formData, supplierType: e.target.value });
+                                    }}
+                                    placeholder="Enter custom supplier type..."
+                                    className="input"
+                                    autoFocus
+                                />
+                            )}
                         </div>
 
                         <div>
@@ -292,7 +332,7 @@ export default function SupplierDetailPage() {
                         </div>
                     </div>
                 )}
-            </div>
+            </div >
 
             {isEditing && (
                 <div className="fixed bottom-16 lg:bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 lg:left-64 z-20">
@@ -304,7 +344,8 @@ export default function SupplierDetailPage() {
                         {isSubmitting ? 'Saving...' : '✓ Save Changes'}
                     </button>
                 </div>
-            )}
+            )
+            }
         </>
     );
 }

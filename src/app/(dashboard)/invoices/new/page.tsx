@@ -19,18 +19,34 @@ function LineItemRow({
     onReplicateField,
     onReplicateRow,
     canRemove,
-    isMobile
+    isMobile,
+    isTypeB
 }: {
-    item: { localId: string; description: string; quantity: number; rate: number; cost?: number; unit?: string; customValues?: Record<string, string> };
+    item: {
+        localId: string;
+        description: string;
+        quantity: number;
+        rate: number;
+        cost?: number;
+        unit?: string;
+        customValues?: Record<string, string>;
+        // Type B fields
+        weight?: number;
+        valueExclTax?: number;
+        salesTaxPercent?: number;
+        totalSalesTax?: number;
+        valueInclTax?: number;
+    };
     index: number;
     customColumns: { id: string; label: string }[];
-    onUpdate: (localId: string, field: 'localId' | 'description' | 'quantity' | 'rate' | 'cost' | 'unit', value: string | number) => void;
+    onUpdate: (localId: string, field: 'localId' | 'description' | 'quantity' | 'rate' | 'cost' | 'unit' | 'weight', value: string | number) => void;
     onUpdateCustomValue: (localId: string, columnId: string, value: string) => void;
     onRemove: (localId: string) => void;
     onReplicateField: (localId: string, field: string) => void;
     onReplicateRow: (localId: string) => void;
     canRemove: boolean;
     isMobile: boolean;
+    isTypeB?: boolean;
 }) {
     const amount = item.quantity * item.rate;
 
@@ -114,6 +130,49 @@ function LineItemRow({
                         </div>
                     </div>
                 </div>
+
+                {/* Type B Tax Fields */}
+                {isTypeB && (
+                    <div className="mt-3 pt-3 border-t border-blue-100 bg-blue-50 -mx-3 -mb-3 px-3 pb-3 rounded-b-lg">
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                                <label className="block text-blue-600 mb-1">Weight (kg)</label>
+                                <input
+                                    type="number"
+                                    value={item.weight || ''}
+                                    onChange={(e) => onUpdate(item.localId, 'weight', parseFloat(e.target.value) || 0)}
+                                    placeholder="0"
+                                    step="0.01"
+                                    className="w-full px-2 py-1.5 text-sm border border-blue-200 rounded-lg focus:border-blue-500 focus:outline-none bg-white"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-blue-600 mb-1">Tax Rate</label>
+                                <div className="px-2 py-1.5 text-sm text-right font-medium text-blue-700 bg-blue-100 rounded-lg">
+                                    {item.salesTaxPercent || 0}%
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-blue-600 mb-1">Excl. Tax</label>
+                                <div className="px-2 py-1.5 text-sm text-right font-medium text-gray-700 bg-blue-100 rounded-lg">
+                                    {formatNumber(item.valueExclTax || 0)}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-blue-600 mb-1">Tax Amount</label>
+                                <div className="px-2 py-1.5 text-sm text-right font-medium text-gray-700 bg-blue-100 rounded-lg">
+                                    {formatNumber(item.totalSalesTax || 0)}
+                                </div>
+                            </div>
+                            <div className="col-span-2">
+                                <label className="block text-blue-600 mb-1">Value Incl. Tax</label>
+                                <div className="px-2 py-1.5 text-sm text-right font-semibold text-blue-800 bg-blue-200 rounded-lg">
+                                    {formatNumber(item.valueInclTax || 0)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }
@@ -173,6 +232,33 @@ function LineItemRow({
             <td className="px-2 py-2 w-28 text-right text-sm font-medium text-gray-900">
                 {formatNumber(amount)}
             </td>
+            {/* Type B specific columns */}
+            {isTypeB && (
+                <>
+                    <td className="px-2 py-2 w-20">
+                        <input
+                            type="number"
+                            value={item.weight || ''}
+                            onChange={(e) => onUpdate(item.localId, 'weight', parseFloat(e.target.value) || 0)}
+                            placeholder="0"
+                            step="0.01"
+                            className="w-full px-2 py-1.5 text-sm text-right border border-transparent rounded hover:border-blue-300 focus:border-blue-500 focus:outline-none bg-blue-50"
+                        />
+                    </td>
+                    <td className="px-2 py-2 w-24 text-right text-sm text-gray-600 bg-blue-50">
+                        {formatNumber(item.valueExclTax || 0)}
+                    </td>
+                    <td className="px-2 py-2 w-16 text-right text-sm text-blue-600 bg-blue-50">
+                        {item.salesTaxPercent || 0}%
+                    </td>
+                    <td className="px-2 py-2 w-24 text-right text-sm text-gray-600 bg-blue-50">
+                        {formatNumber(item.totalSalesTax || 0)}
+                    </td>
+                    <td className="px-2 py-2 w-28 text-right text-sm font-semibold text-blue-700 bg-blue-100">
+                        {formatNumber(item.valueInclTax || 0)}
+                    </td>
+                </>
+            )}
             <td className="px-2 py-2 w-10">
                 {canRemove && (
                     <button
@@ -283,10 +369,13 @@ function NewInvoicePageContent() {
     const {
         customerId,
         walkInCustomerName,
+        walkInStRegNo,
+        walkInNtnNo,
         invoiceDate,
         dueDate,
         items,
         customColumns,
+        invoiceType,
         designCharges,
         deliveryCharges,
         taxRate,
@@ -303,8 +392,11 @@ function NewInvoicePageContent() {
         isLoading,
         setCustomerId,
         setWalkInCustomerName,
+        setWalkInStRegNo,
+        setWalkInNtnNo,
         setInvoiceDate,
         setDueDate,
+        setInvoiceType,
         addItem,
         removeItem,
         updateItem,
@@ -401,7 +493,7 @@ function NewInvoicePageContent() {
             <div className="p-4 lg:p-6 pb-40 lg:pb-32">
                 {/* Customer & Date */}
                 <div className="card mb-4">
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
                         <div className="sm:col-span-1">
                             <label className="block text-sm font-medium text-gray-700 mb-1">Customer</label>
                             <select
@@ -419,13 +511,34 @@ function NewInvoicePageContent() {
 
                             {/* Walk-in Customer Name Input */}
                             {!customerId && (
-                                <input
-                                    type="text"
-                                    value={walkInCustomerName}
-                                    onChange={(e) => setWalkInCustomerName(e.target.value)}
-                                    placeholder="Enter Customer Name (Optional)"
-                                    className="input bg-gray-50 border-dashed"
-                                />
+                                <div className="space-y-2">
+                                    <input
+                                        type="text"
+                                        value={walkInCustomerName}
+                                        onChange={(e) => setWalkInCustomerName(e.target.value)}
+                                        placeholder="Enter Customer Name (Optional)"
+                                        className="input bg-gray-50 border-dashed"
+                                    />
+                                    {/* Type B: Walk-in Customer Tax Fields */}
+                                    {invoiceType === 'B' && (
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <input
+                                                type="text"
+                                                value={walkInStRegNo}
+                                                onChange={(e) => setWalkInStRegNo(e.target.value)}
+                                                placeholder="S.T. Reg. No. (Optional)"
+                                                className="input text-xs bg-blue-50 border-dashed"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={walkInNtnNo}
+                                                onChange={(e) => setWalkInNtnNo(e.target.value)}
+                                                placeholder="NTN No. (Optional)"
+                                                className="input text-xs bg-blue-50 border-dashed"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
                             )}
                         </div>
                         <div>
@@ -445,6 +558,34 @@ function NewInvoicePageContent() {
                                 onChange={(e) => setDueDate(e.target.value)}
                                 className="input"
                             />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Type</label>
+                            <div className="flex rounded-lg overflow-hidden border border-gray-200">
+                                <button
+                                    type="button"
+                                    onClick={() => setInvoiceType('A')}
+                                    className={`flex-1 py-2 text-sm font-medium transition-colors ${invoiceType === 'A'
+                                        ? 'bg-green-600 text-white'
+                                        : 'bg-white text-gray-600 hover:bg-gray-50'
+                                        }`}
+                                >
+                                    Standard
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setInvoiceType('B')}
+                                    className={`flex-1 py-2 text-sm font-medium transition-colors border-l ${invoiceType === 'B'
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-white text-gray-600 hover:bg-gray-50'
+                                        }`}
+                                >
+                                    Tax Invoice
+                                </button>
+                            </div>
+                            {invoiceType === 'B' && (
+                                <p className="text-xs text-blue-600 mt-1">Includes tax registration details</p>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -498,6 +639,7 @@ function NewInvoicePageContent() {
                                     onReplicateRow={handleReplicateRow}
                                     canRemove={items.length > 1}
                                     isMobile={true}
+                                    isTypeB={invoiceType === 'B'}
                                 />
                             ))}
                         </div>
@@ -536,6 +678,16 @@ function NewInvoicePageContent() {
                                             </button>
                                         </th>
                                         <th className="px-2 py-2 text-right text-xs font-semibold text-gray-500 w-28">Amount</th>
+                                        {/* Type B Headers */}
+                                        {invoiceType === 'B' && (
+                                            <>
+                                                <th className="px-2 py-2 text-right text-xs font-semibold text-blue-600 w-20 bg-blue-50">Weight (kg)</th>
+                                                <th className="px-2 py-2 text-right text-xs font-semibold text-blue-600 w-24 bg-blue-50">Excl. Tax</th>
+                                                <th className="px-2 py-2 text-right text-xs font-semibold text-blue-600 w-16 bg-blue-50">Tax %</th>
+                                                <th className="px-2 py-2 text-right text-xs font-semibold text-blue-600 w-24 bg-blue-50">Tax Amt</th>
+                                                <th className="px-2 py-2 text-right text-xs font-semibold text-blue-700 w-28 bg-blue-100">Incl. Tax</th>
+                                            </>
+                                        )}
                                         <th className="px-2 py-2 w-10"></th>
                                     </tr>
                                 </thead>
@@ -553,6 +705,7 @@ function NewInvoicePageContent() {
                                             onReplicateRow={handleReplicateRow}
                                             canRemove={items.length > 1}
                                             isMobile={false}
+                                            isTypeB={invoiceType === 'B'}
                                         />
                                     ))}
                                 </tbody>
@@ -597,17 +750,20 @@ function NewInvoicePageContent() {
                                     className="input"
                                 />
                             </div>
-                            <div>
-                                <label className="block text-sm text-gray-600 mb-1">Tax %</label>
-                                <input
-                                    type="number"
-                                    value={taxRate || ''}
-                                    onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
-                                    placeholder="0"
-                                    step="0.5"
-                                    className="input"
-                                />
-                            </div>
+                            {/* Tax field - only show for Type A */}
+                            {invoiceType !== 'B' && (
+                                <div>
+                                    <label className="block text-sm text-gray-600 mb-1">Tax %</label>
+                                    <input
+                                        type="number"
+                                        value={taxRate || ''}
+                                        onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
+                                        placeholder="0"
+                                        step="0.5"
+                                        className="input"
+                                    />
+                                </div>
+                            )}
                             <div>
                                 <label className="block text-sm text-gray-600 mb-1">Other</label>
                                 <input
