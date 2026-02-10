@@ -229,6 +229,8 @@ function LineItemRow({
                     />
                 </td>
             ))}
+            {/* Empty cell for the "+" add-column button in header */}
+            <td className="px-2 py-2 w-6"></td>
             <td className="px-2 py-2 w-28 text-right text-sm font-medium text-gray-900">
                 {formatNumber(amount)}
             </td>
