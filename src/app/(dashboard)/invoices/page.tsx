@@ -63,7 +63,7 @@ export default function InvoicesPage() {
         <>
             <Header
                 title="Invoices"
-                subtitle={`${filteredInvoices.length} invoice${filteredInvoices.length !== 1 ? 's' : ''}`}
+                subtitle={isInitialized ? `${filteredInvoices.length} invoice${filteredInvoices.length !== 1 ? 's' : ''}` : '\u00A0'}
                 actions={
                     <Link href="/invoices/new" className="btn-primary flex items-center gap-2">
                         <span>➕</span>

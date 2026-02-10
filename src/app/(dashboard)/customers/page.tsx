@@ -36,7 +36,7 @@ export default function CustomersPage() {
         <>
             <Header
                 title="Customers"
-                subtitle={`${filteredCustomers.length} customer${filteredCustomers.length !== 1 ? 's' : ''}`}
+                subtitle={isInitialized ? `${filteredCustomers.length} customer${filteredCustomers.length !== 1 ? 's' : ''}` : '\u00A0'}
                 actions={
                     <Link href="/customers/new" className="btn-primary flex items-center gap-2">
                         <span>➕</span>

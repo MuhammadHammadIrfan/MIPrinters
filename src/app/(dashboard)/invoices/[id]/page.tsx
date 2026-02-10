@@ -283,7 +283,7 @@ export default function InvoiceDetailPage() {
     useEffect(() => {
         const syncData = async () => {
             // Force pull from cloud to get latest payments
-            await pullFromCloud(true).catch(console.error);
+            await pullFromCloud().catch(console.error);
             // Reload invoice data from local DB after sync
             if (hasLoadedRef.current) {
                 const inv = await db.invoices.get(invoiceId);

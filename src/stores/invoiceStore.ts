@@ -45,15 +45,7 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
 
         set({ isLoading: true, error: null });
         try {
-            // First, pull from cloud to ensure we have latest data
-            // This is non-blocking - if it fails, we continue with local data
-            await pullFromCloud().catch(err => {
-                console.warn('Cloud pull failed, using local data:', err);
-            });
-
-
-
-            // Fetch invoices (excluding soft-deleted)
+            // Fetch invoices from local DB first (excluding soft-deleted)
             const allInvoices = await db.invoices.orderBy('createdAt').reverse().toArray();
             const invoices = allInvoices.filter(i => i.isDeleted !== true);
 
@@ -80,6 +72,29 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
             });
 
             set({ invoices: invoicesWithCustomers, isLoading: false, isInitialized: true });
+
+            // Trigger background sync - reload after pull completes
+            pullFromCloud().then(async () => {
+                const refreshedInvoices = await db.invoices.orderBy('createdAt').reverse().toArray();
+                const activeInvoices = refreshedInvoices.filter(i => i.isDeleted !== true);
+                const refreshedCustomers = await db.customers.toArray();
+                const refreshedMap = new Map<string, typeof refreshedCustomers[0]>();
+                refreshedCustomers.forEach(c => {
+                    if (c.localId) refreshedMap.set(c.localId, c);
+                    if (c.id) refreshedMap.set(c.id, c);
+                });
+                const refreshedWithCustomers: InvoiceWithCustomer[] = activeInvoices.map(invoice => {
+                    let customerName = undefined;
+                    if (invoice.customerId) {
+                        const customer = refreshedMap.get(invoice.customerId);
+                        if (customer) {
+                            customerName = customer.company || customer.name;
+                        }
+                    }
+                    return { ...invoice, customerName };
+                });
+                set({ invoices: refreshedWithCustomers });
+            }).catch(err => console.error('Background sync failed:', err));
         } catch (error) {
             console.error('Failed to load invoices:', error);
             set({ error: 'Failed to load invoices', isLoading: false, isInitialized: true });
@@ -155,14 +170,12 @@ export const useInvoiceStore = create<InvoiceState>((set, get) => ({
 
     getDashboardStats: async () => {
         try {
-            // Ensure we have latest data from cloud
-            await pullFromCloud().catch(() => { });
-
             const now = new Date();
             const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
             const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
 
-            const allInvoices = await db.invoices.toArray();
+            const allInvoicesRaw = await db.invoices.toArray();
+            const allInvoices = allInvoicesRaw.filter(i => i.isDeleted !== true);
             const allCustomers = await db.customers.toArray();
             const customers = allCustomers.filter(c => c.isActive !== false).length;
 

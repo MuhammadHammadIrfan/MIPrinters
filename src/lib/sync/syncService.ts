@@ -18,7 +18,7 @@ let syncState: SyncState = {
 };
 
 let isInitialized = false;
-let hasPulledFromCloud = false;
+let isPulling = false;
 
 export function getSyncState(): SyncState {
     return { ...syncState };
@@ -26,11 +26,11 @@ export function getSyncState(): SyncState {
 
 // ============================================
 // PULL FROM CLOUD - Fetch data from Supabase into IndexedDB
-// This runs once when app loads to ensure device has latest data
+// Cloud is SOURCE OF TRUTH: local synced records not in cloud get removed
 // ============================================
-export async function pullFromCloud(force = false): Promise<void> {
-    if (hasPulledFromCloud && !force) {
-        console.log('Already pulled from cloud');
+export async function pullFromCloud(): Promise<void> {
+    if (isPulling) {
+        console.log('Pull already in progress');
         return;
     }
 
@@ -40,11 +40,12 @@ export async function pullFromCloud(force = false): Promise<void> {
         return;
     }
 
+    isPulling = true;
     console.log('Pulling data from cloud...');
     const supabase = createClient();
 
     try {
-        // Pull customers
+        // ---- CUSTOMERS ----
         const { data: cloudCustomers, error: customersError } = await supabase
             .from('customers')
             .select('*')
@@ -53,10 +54,15 @@ export async function pullFromCloud(force = false): Promise<void> {
 
         if (customersError) {
             console.error('Failed to pull customers:', customersError.message);
-        } else if (cloudCustomers && cloudCustomers.length > 0) {
+        } else if (cloudCustomers) {
             console.log(`Pulled ${cloudCustomers.length} customers from cloud`);
 
+            // Build a set of cloud IDs for reconciliation
+            const cloudCustomerIds = new Set<string>();
+
             for (const cloudCust of cloudCustomers) {
+                cloudCustomerIds.add(cloudCust.id);
+
                 // Check if already exists locally by server ID or local_id
                 const existingById = await db.customers.filter(c => c.id === cloudCust.id).first();
                 const existingByLocalId = cloudCust.local_id
@@ -107,9 +113,18 @@ export async function pullFromCloud(force = false): Promise<void> {
                     });
                 }
             }
+
+            // Reconcile: remove local synced customers not in cloud
+            const localCustomers = await db.customers.toArray();
+            for (const local of localCustomers) {
+                if (local.id && local.syncStatus === 'synced' && !cloudCustomerIds.has(local.id)) {
+                    console.log(`Removing local customer not in cloud: ${local.name} (${local.id})`);
+                    await db.customers.delete(local.localId);
+                }
+            }
         }
 
-        // Pull invoices (excluding soft-deleted)
+        // ---- INVOICES ----
         const { data: cloudInvoices, error: invoicesError } = await supabase
             .from('invoices')
             .select('*')
@@ -118,11 +133,14 @@ export async function pullFromCloud(force = false): Promise<void> {
 
         if (invoicesError) {
             console.error('Failed to pull invoices:', invoicesError.message);
-
-        } else if (cloudInvoices && cloudInvoices.length > 0) {
+        } else if (cloudInvoices) {
             console.log(`Pulled ${cloudInvoices.length} invoices from cloud`);
 
+            const cloudInvoiceIds = new Set<string>();
+
             for (const cloudInv of cloudInvoices) {
+                cloudInvoiceIds.add(cloudInv.id);
+
                 const existingById = await db.invoices.filter(i => i.id === cloudInv.id).first();
                 const existingByLocalId = cloudInv.local_id
                     ? await db.invoices.get(cloudInv.local_id)
@@ -157,6 +175,7 @@ export async function pullFromCloud(force = false): Promise<void> {
                             internalNotes: cloudInv.internal_notes || undefined,
                             status: cloudInv.status,
                             customColumns: cloudInv.custom_columns || [],
+                            isDeleted: false,
                             syncStatus: 'synced',
                             updatedAt: new Date(cloudInv.updated_at).getTime(),
                         });
@@ -235,21 +254,35 @@ export async function pullFromCloud(force = false): Promise<void> {
                     }
                 }
             }
+
+            // Reconcile: remove local synced invoices not in cloud
+            const localInvoices = await db.invoices.toArray();
+            for (const local of localInvoices) {
+                if (local.id && local.syncStatus === 'synced' && !cloudInvoiceIds.has(local.id)) {
+                    console.log(`Removing local invoice not in cloud: ${local.invoiceNumber} (${local.id})`);
+                    // Also remove associated invoice items
+                    await db.invoiceItems.where('invoiceLocalId').equals(local.localId).delete();
+                    await db.invoices.delete(local.localId);
+                }
+            }
         }
 
-        // Pull suppliers (excluding soft-deleted)
+        // ---- SUPPLIERS ----
         const { data: cloudSuppliers, error: suppliersError } = await supabase
             .from('suppliers')
             .select('*')
-            // .or('is_active.is.null,is_active.eq.true') // Simplify query to avoid syntax issues
             .order('created_at', { ascending: false });
 
         if (suppliersError) {
             console.error('Failed to pull suppliers:', suppliersError.message);
-        } else if (cloudSuppliers && cloudSuppliers.length > 0) {
+        } else if (cloudSuppliers) {
             console.log(`Pulled ${cloudSuppliers.length} suppliers from cloud`);
 
+            const cloudSupplierIds = new Set<string>();
+
             for (const cloudSup of cloudSuppliers) {
+                cloudSupplierIds.add(cloudSup.id);
+
                 const existingById = await db.suppliers.filter(s => s.id === cloudSup.id).first();
                 const existingByLocalId = cloudSup.local_id
                     ? await db.suppliers.get(cloudSup.local_id)
@@ -285,9 +318,18 @@ export async function pullFromCloud(force = false): Promise<void> {
                     });
                 }
             }
+
+            // Reconcile: remove local synced suppliers not in cloud
+            const localSuppliers = await db.suppliers.toArray();
+            for (const local of localSuppliers) {
+                if (local.id && local.syncStatus === 'synced' && !cloudSupplierIds.has(local.id)) {
+                    console.log(`Removing local supplier not in cloud: ${local.name} (${local.id})`);
+                    await db.suppliers.delete(local.localId);
+                }
+            }
         }
 
-        // Pull payments
+        // ---- PAYMENTS ----
         const { data: cloudPayments, error: paymentsError } = await supabase
             .from('payments')
             .select('*')
@@ -295,8 +337,12 @@ export async function pullFromCloud(force = false): Promise<void> {
 
         if (paymentsError) {
             console.error('Failed to pull payments:', paymentsError.message);
-        } else if (cloudPayments && cloudPayments.length > 0) {
+        } else if (cloudPayments) {
+            const cloudPaymentIds = new Set<string>();
+
             for (const cloudPay of cloudPayments) {
+                cloudPaymentIds.add(cloudPay.id);
+
                 const existingById = await db.payments.filter(p => p.id === cloudPay.id).first();
                 const existingByLocalId = cloudPay.local_id
                     ? await db.payments.get(cloudPay.local_id)
@@ -348,11 +394,21 @@ export async function pullFromCloud(force = false): Promise<void> {
                     });
                 }
             }
+
+            // Reconcile: remove local synced payments not in cloud
+            const localPayments = await db.payments.toArray();
+            for (const local of localPayments) {
+                if (local.id && local.syncStatus === 'synced' && !cloudPaymentIds.has(local.id)) {
+                    console.log(`Removing local payment not in cloud: ${local.localId} (${local.id})`);
+                    await db.payments.delete(local.localId);
+                }
+            }
         }
 
-        hasPulledFromCloud = true;
+        isPulling = false;
     } catch (error) {
         console.error('Failed to pull from cloud:', error);
+        isPulling = false;
     }
 }
 
@@ -635,7 +691,6 @@ export function initializeAutoSync() {
 
     window.addEventListener('online', () => {
         console.log('Back online - triggering sync');
-        hasPulledFromCloud = false; // Re-pull when back online
         runSync();
     });
 

@@ -31,15 +31,16 @@ export const useCustomerStore = create<CustomerState>((set, get) => ({
 
         set({ isLoading: true, error: null });
         try {
-            // First, pull from cloud to ensure we have latest data
-            // This is non-blocking - if it fails, we continue with local data
-            await pullFromCloud().catch(err => {
-                console.warn('Cloud pull failed, using local data:', err);
-            });
-
             const allCustomers = await db.customers.toArray();
             const customers = allCustomers.filter(c => c.isActive !== false);
             set({ customers, isLoading: false, isInitialized: true });
+
+            // Trigger background sync - reload after pull completes
+            pullFromCloud().then(async () => {
+                const refreshed = await db.customers.toArray();
+                const active = refreshed.filter(c => c.isActive !== false);
+                set({ customers: active });
+            }).catch(err => console.error('Background sync failed:', err));
         } catch (error) {
             console.error('Failed to load customers:', error);
             set({ error: 'Failed to load customers', isLoading: false, isInitialized: true });
