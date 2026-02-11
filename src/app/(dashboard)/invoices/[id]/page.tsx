@@ -554,8 +554,6 @@ export default function InvoiceDetailPage() {
                 <td class="grand-total" style="padding-top: 8px;">Total:</td>
                 <td class="grand-total" style="padding-top: 8px;">Rs. ${invoice.totalAmount.toLocaleString()}</td>
               </tr>
-              ${invoice.amountPaid > 0 ? `<tr><td style="color: #16a34a;">Paid:</td><td style="color: #16a34a;">Rs. ${invoice.amountPaid.toLocaleString()}</td></tr>` : ''}
-              ${invoice.balanceDue > 0 ? `<tr><td style="color: #dc2626; font-weight: bold;">Balance:</td><td style="color: #dc2626; font-weight: bold;">Rs. ${invoice.balanceDue.toLocaleString()}</td></tr>` : ''}
             </table>
           </div>
 
